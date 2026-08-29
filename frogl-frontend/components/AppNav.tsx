@@ -1,13 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAccount } from "@/lib/account-context";
 import { useRole } from "@/lib/role-context";
 
 export function AppNav() {
   const { role, hydrated, clearRole } = useRole();
+  const { account, logout } = useAccount();
   const pathname = usePathname();
-  const showJuryRoom = hydrated && role === "jurado";
+  const router = useRouter();
+  const showJuryRoom = hydrated && Boolean(account);
+
+  function exit() {
+    if (account) logout();
+    clearRole();
+    router.push("/");
+  }
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/70 bg-bg-elevated/80 backdrop-blur-md">
@@ -61,18 +70,18 @@ export function AppNav() {
         </nav>
 
         <div className="flex items-center gap-3">
-          {hydrated && role ? (
+          {hydrated && (role || account) ? (
             <button
               type="button"
-              onClick={clearRole}
+              onClick={exit}
               className="text-[0.7rem] font-semibold tracking-[0.12em] text-fg-muted uppercase hover:text-fg"
             >
-              {role === "jurado" ? "Jurado" : "Pitcher"} · salir
+              {account ? account.name : "Pitcher"} · salir
             </button>
           ) : null}
           <Link
             href={
-              role === "jurado"
+              account
                 ? "/jurado"
                 : role === "pitcher"
                   ? "/pitch"
@@ -80,11 +89,7 @@ export function AppNav() {
             }
             className="cta-primary"
           >
-            {role === "jurado"
-              ? "Panel →"
-              : role === "pitcher"
-                ? "Sala →"
-                : "Empezar →"}
+            {account ? "Panel →" : role === "pitcher" ? "Sala →" : "Empezar →"}
           </Link>
         </div>
       </div>

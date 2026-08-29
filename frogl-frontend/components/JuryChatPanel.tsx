@@ -1,18 +1,18 @@
 "use client";
 
 import { useRef, useState, type FormEvent } from "react";
+import { useAccount } from "@/lib/account-context";
 import { useJuryChat } from "@/lib/chat-context";
-import { JURY, JURY_LIST, type JurySlug } from "@/lib/jury";
 
-export function JuryChatPanel({ activeSeat }: { activeSeat: JurySlug }) {
+export function JuryChatPanel() {
+  const { account } = useAccount();
   const { messages, send } = useJuryChat();
   const [text, setText] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
-  const seat = JURY[activeSeat];
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    send(activeSeat, seat.name, text);
+    send(text);
     setText("");
     requestAnimationFrame(() => {
       listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
@@ -25,12 +25,14 @@ export function JuryChatPanel({ activeSeat }: { activeSeat: JurySlug }) {
         <div>
           <p className="label-caps">Chat del panel</p>
           <h2 className="font-[family-name:var(--font-display)] text-2xl text-fg">
-            Solo el jurado escribe aquí
+            Escribís con tu cuenta
           </h2>
         </div>
-        <p className="text-sm text-fg-muted">
-          Como <span style={{ color: seat.color }}>{seat.name}</span>
-        </p>
+        {account ? (
+          <p className="text-sm text-fg-muted">
+            Como <span style={{ color: account.color }}>{account.name}</span>
+          </p>
+        ) : null}
       </div>
 
       <div
@@ -42,19 +44,16 @@ export function JuryChatPanel({ activeSeat }: { activeSeat: JurySlug }) {
             Todavía no hay reacciones. Escribí la primera.
           </p>
         ) : (
-          messages.map((message) => {
-            const who = JURY[message.seat];
-            return (
-              <article key={message.id} className="flex flex-col gap-1">
-                <p className="label-caps" style={{ color: who.color }}>
-                  {who.name}
-                </p>
-                <p className="max-w-[36rem] text-[1.05rem] leading-relaxed text-fg">
-                  {message.text}
-                </p>
-              </article>
-            );
-          })
+          messages.map((message) => (
+            <article key={message.id} className="flex flex-col gap-1">
+              <p className="label-caps" style={{ color: message.color }}>
+                {message.author}
+              </p>
+              <p className="max-w-[36rem] text-[1.05rem] leading-relaxed text-fg">
+                {message.text}
+              </p>
+            </article>
+          ))
         )}
       </div>
 
@@ -66,7 +65,7 @@ export function JuryChatPanel({ activeSeat }: { activeSeat: JurySlug }) {
           id="jury-chat"
           value={text}
           onChange={(event) => setText(event.target.value)}
-          placeholder={`Reaccioná como ${seat.name}…`}
+          placeholder="Tu reacción al expositor…"
           className="h-12 flex-1 rounded-full border border-border bg-bg-elevated px-5 text-fg outline-none placeholder:text-fg-muted focus:border-fg-muted"
         />
         <button
@@ -77,12 +76,6 @@ export function JuryChatPanel({ activeSeat }: { activeSeat: JurySlug }) {
           Enviar
         </button>
       </form>
-
-      <p className="mt-3 text-xs text-fg-muted">
-        El pitcher no entra a esta sala. Ve tus mensajes como globos sobre su
-        pantalla. Asientos:{" "}
-        {JURY_LIST.map((j) => j.name.split(" ")[0]).join(" · ")}.
-      </p>
     </section>
   );
 }

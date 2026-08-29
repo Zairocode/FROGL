@@ -2,8 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { FrogMascot } from "./characters/FrogMascot";
-import { JuryFigure } from "./characters/JuryFigure";
-import { JURY_LIST } from "@/lib/jury";
 import { useRole } from "@/lib/role-context";
 
 export function LandingPage() {
@@ -14,8 +12,8 @@ export function LandingPage() {
     <main>
       <section className="relative flex min-h-[calc(100svh-4rem)] flex-col items-center justify-center overflow-hidden px-5 pb-20 pt-8 text-center">
         <div className="type-ring" aria-hidden>
-          <span>LIVE · TÉCNICA · TIKTOK · LATE JOIN · ACTITUD · PITCH · </span>
-          <span>LIVE · TÉCNICA · TIKTOK · LATE JOIN · ACTITUD · PITCH · </span>
+          <span>LIVE · CUENTA · JURADO · PITCH · GLOBOS · EN VIVO · </span>
+          <span>LIVE · CUENTA · JURADO · PITCH · GLOBOS · EN VIVO · </span>
         </div>
 
         <FrogMascot size={260} className="relative z-10" />
@@ -24,8 +22,8 @@ export function LandingPage() {
           FROGL
         </h1>
         <p className="relative z-10 mt-4 max-w-md text-lg text-fg-muted">
-          Presentás. El jurado híbrido reacciona en vivo. Te puntúan con su
-          propia rúbrica.
+          Presentás. Jurados de verdad, cada uno con su cuenta, reaccionan en
+          vivo.
         </p>
 
         <div className="relative z-10 mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -42,10 +40,7 @@ export function LandingPage() {
           <button
             type="button"
             className="cta-secondary"
-            onClick={() => {
-              setRole("jurado");
-              router.push("/jurado");
-            }}
+            onClick={() => router.push("/cuenta")}
           >
             Soy jurado
           </button>
@@ -58,29 +53,27 @@ export function LandingPage() {
           Presentás → reaccionan → te puntúan
         </h2>
         <p className="mx-auto mt-4 max-w-lg text-fg-muted">
-          El pitcher habla en su sala. El jurado escribe en una sala aparte. Esas
-          reacciones aparecen como globos de texto frente al presentador.
+          El pitcher habla en su sala. Cada jurado entra con su cuenta a una
+          sala aparte. Esas reacciones aparecen como globos de texto.
         </p>
       </section>
 
-      <section id="jurados" className="mx-auto max-w-5xl px-5 py-16">
-        <p className="label-caps text-center">El panel</p>
-        <h2 className="mt-2 text-center font-[family-name:var(--font-display)] text-[length:var(--text-title)]">
-          Cuatro sesgos. Un asiento cada uno.
+      <section id="jurados" className="mx-auto max-w-xl px-5 py-16 text-center">
+        <p className="label-caps">El panel</p>
+        <h2 className="mt-2 font-[family-name:var(--font-display)] text-[length:var(--text-title)]">
+          Humanos con cuenta. Sin bots.
         </h2>
-        <div className="mt-10 grid grid-cols-2 gap-6 lg:grid-cols-4">
-          {JURY_LIST.map((seat) => (
-            <div key={seat.slug} className="flex flex-col items-center text-center">
-              <JuryFigure slug={seat.slug} size={130} />
-              <p className="mt-2 font-[family-name:var(--font-display)] text-xl">
-                {seat.name}
-              </p>
-              <p className="label-caps mt-1" style={{ color: seat.color }}>
-                {seat.role}
-              </p>
-            </div>
-          ))}
-        </div>
+        <p className="mt-4 text-fg-muted">
+          Nombre, mail y contraseña. El expositor ve quién te escribió, no un
+          agente prearmado.
+        </p>
+        <button
+          type="button"
+          className="cta-primary mt-6"
+          onClick={() => router.push("/cuenta")}
+        >
+          Crear cuenta de jurado
+        </button>
       </section>
 
       <section id="faq" className="mx-auto max-w-xl px-5 py-20 text-center">
@@ -89,8 +82,8 @@ export function LandingPage() {
           ¿El pitcher ve el chat del jurado?
         </h2>
         <p className="mt-4 text-fg-muted">
-          No. La sala del jurado es privada. Solo le llegan globos con lo que el
-          panel decide tirarle.
+          No. La sala del jurado es privada. Solo le llegan globos con lo que
+          cada cuenta decide tirarle.
         </p>
       </section>
     </main>

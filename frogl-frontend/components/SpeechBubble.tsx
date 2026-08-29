@@ -3,7 +3,6 @@
 import { animate } from "animejs";
 import { useEffect, useRef } from "react";
 import type { ChatMessage } from "@/lib/chat-store";
-import { JURY } from "@/lib/jury";
 import { prefersReducedMotion } from "@/lib/motion";
 
 export function SpeechBubble({
@@ -14,7 +13,6 @@ export function SpeechBubble({
   compact?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const seat = JURY[message.seat];
 
   useEffect(() => {
     const el = ref.current;
@@ -33,11 +31,11 @@ export function SpeechBubble({
     <div
       ref={ref}
       className={`speech-bubble ${compact ? "speech-bubble-compact" : ""}`}
-      style={{ ["--bubble-accent" as string]: seat.color }}
+      style={{ ["--bubble-accent" as string]: message.color }}
     >
       <p className="speech-bubble-meta">
         <span className="speech-bubble-dot" />
-        {seat.name}
+        {message.author}
       </p>
       <p className="speech-bubble-text">{message.text}</p>
     </div>
