@@ -98,17 +98,16 @@ Referencia de composición: landing tipo *the next craft* — fondo oscuro, **h�
 
 ### Landing (primer viewport)
 
-Una sola composición:
+Una sola composición full-viewport sobre `#212529` (estilo sala de pitch): sin rana, sin type-ring.
 
-1. **Nav** — logo izquierda; links centro (About / How it works / Jury / FAQ); CTA derecha (`Empezar →`).
-2. **Héroe** — personaje(s) 2.5D a escala dominante (edge-to-edge atmosphere, no card inset).
-3. **Marca** — “FROGL” como señal hero-level (no solo texto de nav).
-4. **Una frase** — promesa corta (pitch + jurado híbrido en vivo).
-5. **Un grupo CTA** — primario + secundario opcional.
+1. **Texto** — Fraunces grande: escribe una oración, la borra, escribe la siguiente (sin `>` ni mono consola).
+2. **Mic → FROGL** — mesh low-poly blanco tipo mic solapa (Three.js / R3F); entrada/idle anime.js → morph a wordmark Fraunces.
+3. **Resolución** — “FROGL tiene la solución.” + promesa híbrida (agentes + jurados reales).
+4. **CTAs** — `Empezar pitch →` / `Soy jurado`.
 
-Opcional detrás del héroe: anillo tipográfico rotatorio (ciudades / “live” / tags de jurado) — atmosférico, no contenido crítico.
+`prefers-reduced-motion`: texto y marca finales sin typewriter/morph. Anclas `#como` / `#jurados` / `#faq` mínimas debajo del fold (una frase + CTA).
 
-**No** en el primer viewport: stats, schedules, listas densas, badges flotantes sobre el personaje, cards.
+**No** en el primer viewport: stats, schedules, listas densas, badges flotantes, cards, mascota.
 
 ### Sala de pitch
 
@@ -211,7 +210,7 @@ Dependencia ya en el proyecto: `animejs` ^4.x.
 
 | Momento | Animación | Notas |
 |---|---|---|
-| Load landing | Entrada del héroe (opacity + translateY + scale 0.96→1) | Ease out, ~600–900ms |
+| Load landing | Consola typewriter → mic bounce → morph a FROGL → promesa + CTAs | anime.js; reduced-motion = estado final |
 | Idle mascot / Kevin | Bounce Y + squash leve | Loop suave; `prefers-reduced-motion` → estático |
 | Reacción jurado | Punch corto / nod / spark | Disparar con nuevos `reactions` |
 | Late join Marco | Slide + fade | Alineado a `seat.joinedAtMs` |
@@ -261,7 +260,7 @@ Respetar `window.matchMedia("(prefers-reduced-motion: reduce)")`: cancelar loops
 
 - Fondo `#212529` en todas las superficies de producto.
 - Personajes de primitivas + lighting soft.
-- Un héroe dominante en landing.
+- Landing: una composición consola → mic → FROGL (sin rana / type-ring).
 - Color de asiento = identidad del jurado.
 - `anime.js` para idle, entrada y reacciones.
 - Tipografía display + sans UI expresiva.
@@ -282,7 +281,7 @@ Respetar `window.matchMedia("(prefers-reduced-motion: reduce)")`: cancelar loops
 - [ ] Tokens en `app/globals.css` (`--bg`, acentos, jury colors) — ver sección 3
 - [ ] Fuentes display + UI en `app/layout.tsx` (reemplazar Geist como marca)
 - [ ] `FrogMascot` + 4 jurados como componentes SVG
-- [ ] Landing: nav + héroe + CTA según sección 5
+- [x] Landing: consola + mic → FROGL + CTAs + anclas mínimas
 - [ ] Hooks de motion con `anime.js` + reduced-motion
 - [ ] Sala: strip de asientos usando colores `--jury-*`
 - [ ] Revisar cada PR de UI contra este documento

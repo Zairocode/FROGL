@@ -1,15 +1,23 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "@convex/_generated/api";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useAccount } from "./account-context";
-import { useCurrentSession } from "./frogl";
-import type { ChatMessage, CueKind } from "./chat-store";
-
-// El chat vive en Convex, no en localStorage. Antes BroadcastChannel solo
-// cruzaba pestanias del MISMO navegador: dos jurados en dos laptops no se
-// veian. La forma de ChatMessage queda igual, asi los componentes no cambian.
+import {
+  CHAT_CHANNEL,
+  CHAT_STORAGE_KEY,
+  createMessage,
+  readChat,
+  writeChat,
+  type ChatMessage,
+  type CueKind,
+} from "./chat-store";
 
 type ChatContextValue = {
   messages: ChatMessage[];
@@ -18,44 +26,44 @@ type ChatContextValue = {
 
 const ChatContext = createContext<ChatContextValue | null>(null);
 
+/** Front-only: chat en localStorage + BroadcastChannel (sin Convex). */
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const { account } = useAccount();
-  const session = useCurrentSession();
-  const sendMessage = useMutation(api.live.send);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
-  const rows = useQuery(
-    api.live.messages,
-    session ? { sessionId: session._id } : "skip",
-  );
+  useEffect(() => {
+    setMessages(readChat());
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === CHAT_STORAGE_KEY) setMessages(readChat());
+    };
+    window.addEventListener("storage", onStorage);
 
-  const messages = useMemo<ChatMessage[]>(
-    () =>
-      (rows ?? []).map((r) => ({
-        id: r._id,
-        accountId: r.accountId,
-        author: r.author,
-        color: r.color,
-        text: r.text,
-        createdAt: r._creationTime,
-        cue: r.cue as CueKind | undefined,
-      })),
-    [rows],
-  );
+    let channel: BroadcastChannel | null = null;
+    if ("BroadcastChannel" in window) {
+      channel = new BroadcastChannel(CHAT_CHANNEL);
+      channel.onmessage = () => setMessages(readChat());
+    }
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      channel?.close();
+    };
+  }, []);
 
   const send = useCallback(
     (text: string, cue?: CueKind) => {
       const trimmed = text.trim();
-      if (!trimmed || !account || !session) return;
-      void sendMessage({
-        sessionId: session._id,
-        accountId: account.id,
-        author: account.name,
-        color: account.color,
-        text: trimmed,
-        cue,
-      });
+      if (!trimmed || !account) return;
+      const next = [...readChat(), createMessage(account, trimmed, cue)];
+      writeChat(next);
+      setMessages(next);
+      if ("BroadcastChannel" in window) {
+        const channel = new BroadcastChannel(CHAT_CHANNEL);
+        channel.postMessage("update");
+        channel.close();
+      }
     },
-    [account, session, sendMessage],
+    [account],
   );
 
   const value = useMemo(() => ({ messages, send }), [messages, send]);
