@@ -1,23 +1,17 @@
-import { getServiceToken } from "convex/server";
-import { createGateway } from "ai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
-// Dos caminos al AI Gateway, en orden:
-//   1. Token que mintea Convex solo  -> requiere plan pago de Convex
-//   2. AI_GATEWAY_API_KEY del deployment -> createGateway() la lee del env
-// Con el fallback esto anda igual en free, y si algun dia se paga Convex
-// pasa al token solo sin tocar una linea.
-async function gateway() {
-  try {
-    return createGateway({ apiKey: await getServiceToken("ai-gateway") });
-  } catch {
-    return createGateway();
-  }
-}
+// UNICO lugar donde vive el proveedor. jury.ts y rag.ts no saben cual es:
+// para cambiar de Google a Anthropic o al gateway de Vercel se toca solo aca.
+// La key sale de GOOGLE_GENERATIVE_AI_API_KEY del deployment de Convex.
+const google = createGoogleGenerativeAI();
+
+export const CHAT_MODEL = "gemini-3.5-flash";
+export const EMBED_MODEL = "gemini-embedding-001";
 
 export async function chat(id: string) {
-  return (await gateway())(id);
+  return google(id);
 }
 
 export async function embedding(id: string) {
-  return (await gateway()).embeddingModel(id);
+  return google.embeddingModel(id);
 }

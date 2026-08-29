@@ -5,8 +5,9 @@ import { v } from "convex/values";
 import { embed } from "ai";
 import { embedding as embeddingModel } from "./model";
 
-// 1536 dims: tiene que coincidir con el vectorIndex del schema.
-export const EMBED_MODEL = "openai/text-embedding-3-small";
+// Las dimensiones tienen que coincidir con el vectorIndex del schema.
+export { EMBED_MODEL } from "./model";
+import { EMBED_MODEL } from "./model";
 
 export const save = internalMutation({
   args: {

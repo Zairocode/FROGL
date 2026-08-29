@@ -102,7 +102,7 @@ export default defineSchema({
     embedding: v.array(v.float64()),
   }).vectorIndex("by_embedding", {
     vectorField: "embedding",
-    dimensions: 1536,
+    dimensions: 3072, // gemini-embedding-001
     filterFields: ["tag"],
   }),
 });

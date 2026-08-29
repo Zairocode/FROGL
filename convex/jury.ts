@@ -7,7 +7,9 @@ import { retrieve } from "./rag";
 import { chat } from "./model";
 import type { Doc } from "./_generated/dataModel";
 
-const MODEL = "anthropic/claude-sonnet-5";
+import { CHAT_MODEL } from "./model";
+
+const MODEL = CHAT_MODEL;
 const KINDS = ["hooked", "confused", "bored", "skeptical", "convinced"] as const;
 
 // Anotado a mano: sin esto TS entra en ciclo (action -> internal.jury.bundle -> api.d.ts).
@@ -149,9 +151,17 @@ export const saveScore = internalMutation({
 });
 
 // Scorecard final. El total lo calculamos nosotros con los pesos, no el modelo.
+// Scorecard final. Dos decisiones deliberadas:
+//  1. El schema fuerza UNA propiedad por criterio de la rubrica, asi el modelo
+//     no puede inventar nombres de key. Antes devolvia keys libres, no matcheaban
+//     con los pesos y el total se iba a 0 CON VEREDICTOS ELOGIOSOS.
+//  2. El total lo calculamos nosotros con los pesos, nunca el modelo.
 export const score = action({
   args: { seatId: v.id("seats") },
-  handler: async (ctx, { seatId }): Promise<{ total: number; verdict: string } | null> => {
+  handler: async (
+    ctx,
+    { seatId },
+  ): Promise<{ total: number; verdict: string } | null> => {
     const b = await ctx.runQuery(internal.jury.bundle, { seatId });
     if (!b) return null;
     const endMs =
@@ -160,6 +170,13 @@ export const score = action({
         : Number.MAX_SAFE_INTEGER;
     const visible = sliceTranscript(b.lines, b.seat, b.profile, endMs);
     const heard = visible.map((l) => l.text).join(" ");
+
+    const criterio = z.object({
+      score: z.number().min(0).max(10),
+      why: z.string(),
+    });
+    const shape: Record<string, typeof criterio> = {};
+    for (const r of b.profile.rubric) shape[r.key] = criterio;
 
     const { output } = await generateText({
       model: await chat(MODEL),
@@ -173,31 +190,33 @@ export const score = action({
         .join(", ")}. Cerra con un veredicto de dos lineas.`,
       output: Output.object({
         schema: z.object({
-          breakdown: z.array(
-            z.object({
-              key: z.string(),
-              score: z.number().min(0).max(10),
-              why: z.string(),
-            }),
-          ),
+          criterios: z.object(shape),
           verdict: z.string(),
         }),
       }),
     });
 
-    const weights = new Map(b.profile.rubric.map((r) => [r.key, r.weight]));
-    const total = output.breakdown.reduce(
-      (sum, item) => sum + item.score * (weights.get(item.key) ?? 0),
+    const criterios = output.criterios as Record<
+      string,
+      { score: number; why: string }
+    >;
+    const breakdown = b.profile.rubric.map((r) => ({
+      key: r.key,
+      score: criterios[r.key].score,
+      why: criterios[r.key].why,
+    }));
+    const total = b.profile.rubric.reduce(
+      (sum, r) => sum + criterios[r.key].score * r.weight,
       0,
     );
 
     await ctx.runMutation(internal.jury.saveScore, {
       sessionId: b.seat.sessionId,
       seatId,
-      breakdown: output.breakdown,
+      breakdown,
       total: Math.round(total * 10) / 10,
       verdict: output.verdict,
     });
-    return { total, verdict: output.verdict };
+    return { total: Math.round(total * 10) / 10, verdict: output.verdict };
   },
 });
