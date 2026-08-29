@@ -11,7 +11,12 @@ import { LiveCamera } from "./LiveCamera";
 import { SpeechBubble } from "./SpeechBubble";
 import { useAccount } from "@/lib/account-context";
 import type { ChatMessage } from "@/lib/chat-store";
-import { useCurrentSession, usePanel, useTranscript } from "@/lib/frogl";
+import {
+  useCurrentSession,
+  usePanel,
+  useSpokenQuestions,
+  useTranscript,
+} from "@/lib/frogl";
 import { usePitchCapture } from "@/lib/usePitchCapture";
 
 function formatTimer(ms: number) {
@@ -34,6 +39,9 @@ export function PitchRoom() {
   const cap = usePitchCapture(activeId);
   const panel = usePanel(activeId);
   const lines = useTranscript(activeId);
+  // Las lee en voz alta apenas llegan, solo mientras estas pitcheando.
+  const questions = useSpokenQuestions(activeId, cap.recording);
+  const pendiente = [...questions].reverse().find((q) => !q.answered) ?? null;
 
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
@@ -131,6 +139,13 @@ export function PitchRoom() {
           <ExposureScore />
         </div>
       </div>
+
+      {pendiente && (
+        <section className="mt-6 rounded-2xl border-2 border-accent-teal bg-accent-teal/10 px-5 py-4">
+          <p className="label-caps text-accent-teal">El jurado te interrumpe</p>
+          <p className="mt-1 text-xl leading-snug text-fg">{pendiente.text}</p>
+        </section>
+      )}
 
       <section className="mt-8 w-full text-left">
         <p className="label-caps mb-2">Transcript</p>

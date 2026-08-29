@@ -24,7 +24,10 @@ export const current = query({
       .withIndex("by_status", (q) => q.eq("status", "live"))
       .first();
     if (live) return live;
-    return ctx.db.query("sessions").order("desc").first();
+    // Las sesiones de tuning:dryRun ensucian el front si son las mas
+    // recientes. Se ignoran por el prefijo del titulo.
+    const recientes = await ctx.db.query("sessions").order("desc").take(20);
+    return recientes.find((s) => !s.title.startsWith("[fixture]")) ?? null;
   },
 });
 

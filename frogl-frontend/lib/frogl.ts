@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
@@ -56,4 +56,40 @@ export function useHeartbeat(
     const id = window.setInterval(tick, 5000);
     return () => window.clearInterval(id);
   }, [sessionId, juror, beat]);
+}
+
+/**
+ * EL MOMENTO QUE IMPRESIONA: el jurado interrumpe EN VOZ ALTA.
+ * speechSynthesis es nativo del browser: no cuesta creditos ni backend.
+ * Vapi queda para cuando quieras voces con caracter propio.
+ */
+export function useSpokenQuestions(
+  sessionId: Id<"sessions"> | null | undefined,
+  enabled: boolean,
+) {
+  const questions = useQuestions(sessionId);
+  const dichas = useRef<Set<string> | null>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+
+    // Primera pasada: marcamos las que ya existian sin leerlas. Si no, al
+    // abrir la pagina el jurado recita todo el historico de golpe.
+    if (dichas.current === null) {
+      dichas.current = new Set(questions.map((q) => q._id));
+      return;
+    }
+
+    for (const q of questions) {
+      if (dichas.current.has(q._id)) continue;
+      dichas.current.add(q._id);
+      const u = new SpeechSynthesisUtterance(q.text);
+      u.lang = "es-AR";
+      u.rate = 1.05;
+      window.speechSynthesis.speak(u);
+    }
+  }, [questions, enabled]);
+
+  return questions;
 }
