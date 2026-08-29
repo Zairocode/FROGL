@@ -53,6 +53,9 @@ export function AppNav() {
               Inicio
             </Link>
           )}
+          <Link href="/preparar" className="hover:text-fg">
+            Preparar
+          </Link>
           <Link href="/estudio" className="hover:text-fg">
             Estudio
           </Link>

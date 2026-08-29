@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
@@ -33,6 +34,7 @@ function formatMs(ms: number): string {
 }
 
 export function useSpeechTranscript() {
+  const router = useRouter();
   const session = useCurrentSession();
   const live = session?.status === "live" ? session : null;
   const activeId = live?._id ?? null;
@@ -114,8 +116,12 @@ export function useSpeechTranscript() {
 
   const stop = useCallback(async () => {
     cap.stop();
-    if (activeId) await endSession({ sessionId: activeId });
-  }, [cap, activeId]);
+    if (!activeId) return;
+    // Cerrar el microfono ya no manda al jurado: manda al corrector.
+    // sessions.end mueve la fase a "review" y dispara review.run.
+    await endSession({ sessionId: activeId });
+    router.push("/correccion");
+  }, [cap, activeId, endSession, router]);
 
   const exportTranscript = useCallback(
     (): TranscriptExport => ({
