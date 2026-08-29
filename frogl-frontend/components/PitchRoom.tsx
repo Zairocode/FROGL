@@ -134,6 +134,13 @@ export function PitchRoom() {
             {cap.error && (
               <p className="mt-2 text-sm text-accent-pink">{cap.error}</p>
             )}
+            {cap.recording && (
+              <p className="mt-1 text-xs text-fg-muted">
+                {cap.heard === 0
+                  ? "Grabando… el primer bloque se transcribe a los 6 segundos"
+                  : `Transcribiendo · ${cap.heard} bloques`}
+              </p>
+            )}
           </div>
           <CoachingCues />
           <ExposureScore />

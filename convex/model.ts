@@ -15,3 +15,9 @@ export async function chat(id: string) {
 export async function embedding(id: string) {
   return google.embeddingModel(id);
 }
+
+export const TRANSCRIBE_MODEL = "gemini-3.5-transcribe";
+
+export async function transcription(id: string) {
+  return google.transcription(id);
+}

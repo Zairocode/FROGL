@@ -1,33 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { encodeWav, toBase64 } from "./wav";
 
 // ============================================================
 //  CAPTURA DEL PITCH
-//  Del MISMO stream de microfono salen dos cosas en paralelo:
-//    1. Web Speech API  -> QUE dijo   -> transcript.append
-//    2. Web Audio       -> COMO lo dijo -> delivery.sample
-//  Sin backend, sin creditos, sin dependencias.
+//  El browser SOLO graba. La transcripcion la hace Convex con Gemini.
 //
-//  Uso:
-//    const cap = usePitchCapture(sessionId);
-//    <button onClick={cap.recording ? cap.stop : cap.start}>...</button>
+//  Por que no Web Speech API: no transcribe en el browser, manda el audio
+//  a servidores de Google. En la red del evento eso daba
+//  "speech error: network" en bucle y el transcript quedaba vacio.
+//  Grabando y mandando a Convex, la salida a internet la pone el servidor.
 //
-//  OJO: llama antes a sessions.start, si no transcript.append tira.
+//  Bonus: sin SpeechRecognition ya no hay dos consumidores peleandose el
+//  microfono, asi que volvemos a medir volumen y pausas del mismo stream.
 // ============================================================
 
-const SAMPLE_MS = 3000; // cada cuanto se manda una muestra a Convex
-const FRAME_MS = 100; // cada cuanto se lee el analyser para promediar
+const CHUNK_MS = 6000; // largo de cada clip que se manda a transcribir
+const SAMPLE_MS = 3000; // cada cuanto se manda una muestra acustica
+const FRAME_MS = 100; // cada cuanto se lee el analyser
 
 export type PitchCaptureOptions = {
-  lang?: string;
   /**
-   * Por debajo de esto se cuenta silencio. Depende del microfono y del ruido
-   * de la sala, no hay un valor universal: mira el `level` que devuelve el
-   * hook con el presentador callado y pone un poco mas que eso.
+   * Umbral de silencio. Depende del microfono y del ruido de la sala:
+   * mira `level` con el presentador callado y pone un poco mas que eso.
    */
   silenceThreshold?: number;
 };
@@ -36,27 +35,28 @@ export function usePitchCapture(
   sessionId: Id<"sessions"> | null,
   opts: PitchCaptureOptions = {},
 ) {
-  const { lang = "es-AR", silenceThreshold = 0.015 } = opts;
+  const { silenceThreshold = 0.015 } = opts;
 
-  const append = useMutation(api.transcript.append);
   const sample = useMutation(api.delivery.sample);
+  const ingest = useAction(api.transcript.ingestAudio);
 
   const [recording, setRecording] = useState(false);
   const [interim, setInterim] = useState("");
   const [level, setLevel] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // Clips transcritos. Si queda en 0 con el nivel moviendose, el problema
+  // esta en la transcripcion y no en el microfono.
+  const [heard, setHeard] = useState(0);
 
   const st = useRef({
     stream: null as MediaStream | null,
     ctx: null as AudioContext | null,
-    rec: null as SpeechRecognition | null,
+    rec: null as MediaRecorder | null,
     frameTimer: null as ReturnType<typeof setInterval> | null,
     sampleTimer: null as ReturnType<typeof setInterval> | null,
+    clipTimer: null as ReturnType<typeof setTimeout> | null,
     acc: [] as number[],
     on: false,
-    // La sesion efectiva de ESTA grabacion. Va en el ref y no en el closure
-    // porque start() puede recibir una sesion recien creada, que todavia no
-    // llego por la query.
     sid: null as Id<"sessions"> | null,
   });
 
@@ -65,11 +65,12 @@ export function usePitchCapture(
     s.on = false;
     if (s.frameTimer) clearInterval(s.frameTimer);
     if (s.sampleTimer) clearInterval(s.sampleTimer);
-    s.frameTimer = s.sampleTimer = null;
+    if (s.clipTimer) clearTimeout(s.clipTimer);
+    s.frameTimer = s.sampleTimer = s.clipTimer = null;
     try {
-      s.rec?.abort();
+      if (s.rec && s.rec.state !== "inactive") s.rec.stop();
     } catch {
-      // abort() tira si ya estaba frenado. No importa.
+      // ya estaba frenado
     }
     s.rec = null;
     s.stream?.getTracks().forEach((t) => t.stop());
@@ -85,69 +86,31 @@ export function usePitchCapture(
   const start = useCallback(
     async (override?: Id<"sessions">) => {
       const sid = override ?? sessionId;
-        if (!sid) return setError("No hay sesion activa");
-      const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition;
-      if (!SR)
-        return setError(
-          "Este navegador no soporta Web Speech API. Funciona en Chrome y Edge.",
-        );
+      if (!sid) return setError("No hay sesion activa");
+      // Dos capturas a la vez se pelean el microfono. start() es async, asi
+      // que sin esta guarda un doble click abre la segunda antes de tiempo.
+      if (st.current.on) return;
+      st.current.on = true;
 
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch {
+        st.current.on = false;
         return setError("No se pudo abrir el microfono. Revisa los permisos.");
       }
 
       setError(null);
+      setHeard(0);
       const s = st.current;
-      s.on = true;
       s.stream = stream;
+      s.sid = sid;
       s.acc = [];
 
-      // ---- 1. QUE dijo ----
-      const rec = new SR();
-      s.rec = rec;
-      rec.lang = lang;
-      rec.continuous = true;
-      rec.interimResults = true;
-
-      rec.onresult = (e) => {
-        let pendiente = "";
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const r = e.results[i];
-          const text = r[0].transcript.trim();
-          if (!text) continue;
-          // Solo los finales van a Convex: los interinos cambian en cada palabra
-          // y llenarian la tabla de basura. El parcial se muestra local nomas.
-          if (r.isFinal) void append({ sessionId: sid, text, final: true });
-          else pendiente += text + " ";
-        }
-        setInterim(pendiente.trim());
-      };
-
-      rec.onerror = (e) => {
-        // "no-speech" y "aborted" son ruido normal, no vale la pena mostrarlos.
-        if (e.error !== "no-speech" && e.error !== "aborted")
-          setError(`Reconocimiento: ${e.error}`);
-      };
-
-      // Chrome corta el reconocimiento solo tras unos segundos de silencio.
-      // Sin este relanzado el transcript se muere a mitad del pitch.
-      rec.onend = () => {
-        if (!s.on) return;
-        try {
-          rec.start();
-        } catch {
-          // Si se llama muy pronto tira: el proximo onend reintenta.
-        }
-      };
-
-      rec.start();
-
-      // ---- 2. COMO lo dijo ----
       const ctx = new AudioContext();
       s.ctx = ctx;
+
+      // ---- COMO lo dijo: volumen y pausas ----
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 2048;
       ctx.createMediaStreamSource(stream).connect(analyser);
@@ -172,14 +135,58 @@ export function usePitchCapture(
         void sample({ sessionId: sid, rms, silentRatio });
       }, SAMPLE_MS);
 
-      s.sid = sid;
+      // ---- QUE dijo: clips completos a Convex ----
+      // Un clip por grabacion, no timeslices: los pedazos de MediaRecorder
+      // despues del primero no traen cabecera y no se pueden decodificar solos.
+      const grabarClip = () => {
+        if (!s.on || !s.stream) return;
+        let rec: MediaRecorder;
+        try {
+          rec = new MediaRecorder(s.stream);
+        } catch (err) {
+          console.warn("[FROGL] MediaRecorder fallo:", err);
+          setError("Este navegador no puede grabar audio.");
+          return;
+        }
+        s.rec = rec;
+        const partes: Blob[] = [];
+        rec.ondataavailable = (e) => {
+          if (e.data.size > 0) partes.push(e.data);
+        };
+        rec.onstop = async () => {
+          if (s.on) grabarClip(); // el siguiente clip arranca ya
+          if (partes.length === 0) return;
+          try {
+            const bytes = await new Blob(partes).arrayBuffer();
+            const audio = await ctx.decodeAudioData(bytes);
+            const wav = encodeWav(audio.getChannelData(0), audio.sampleRate);
+            setInterim("transcribiendo…");
+            const texto = await ingest({ sessionId: sid, audio: toBase64(wav) });
+            setInterim("");
+            if (texto) setHeard((n) => n + 1);
+          } catch (err) {
+            console.warn("[FROGL] no se pudo transcribir el clip:", err);
+            setInterim("");
+          }
+        };
+        rec.start();
+        s.clipTimer = setTimeout(() => {
+          try {
+            if (rec.state !== "inactive") rec.stop();
+          } catch {
+            // ya frenado
+          }
+        }, CHUNK_MS);
+      };
+      grabarClip();
+
       setRecording(true);
     },
-    [sessionId, append, sample, lang, silenceThreshold],
+    [sessionId, sample, ingest, silenceThreshold],
   );
 
   // Suelta el microfono si el componente se desmonta a mitad del pitch.
   useEffect(() => stop, [stop]);
 
-  return { recording, interim, level, error, start, stop };
+  return { recording, interim, level, error, heard, start, stop };
 }
