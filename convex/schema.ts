@@ -129,6 +129,10 @@ export default defineSchema({
     joinedAtMs: v.number(),
     active: v.boolean(),
     lastSeen: v.optional(v.number()), // heartbeat del humano; los agentes no lo usan
+    // Lo escribia una version anterior del loop. Ya nadie lo usa, pero las
+    // filas viejas siguen en la base y sin declararlo el deploy entero falla.
+    // Se puede sacar cuando esas sesiones no importen mas.
+    lastReactedAtMs: v.optional(v.number()),
     color: v.optional(v.string()),
   }).index("by_session", ["sessionId"]),
 

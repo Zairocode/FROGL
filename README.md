@@ -81,6 +81,63 @@ modelo. Después, una vez por deployment:
 npx convex run corpus:load
 ```
 
+## Deploy en Vercel
+
+**El repo tiene el front en `frogl-frontend/`, no en la raíz.** La raíz es solo
+el backend de Convex y los checks. Si Vercel apunta a la raíz, buildea una app
+vacía — que fue exactamente lo que pasó la primera vez.
+
+En Vercel → Settings → Build & Deployment:
+
+| Opción | Valor |
+|---|---|
+| Root Directory | `frogl-frontend` |
+| Include source files outside of the Root Directory | **activado** |
+
+Lo segundo es obligatorio: el front importa el codegen de Convex desde
+`../convex/_generated` con el alias `@convex/*`. Sin esa opción, Vercel no sube
+esa carpeta y el build falla con *Module not found*.
+
+`NEXT_PUBLIC_CONVEX_URL` es opcional — hay un fallback en el código con la URL
+del deployment, que no es secreta porque toda variable `NEXT_PUBLIC_` termina
+en el bundle igual. Configurala igual si algún día cambia el deployment.
+
+### El backend va por separado
+
+Convex no se despliega con Vercel:
+
+```bash
+CONVEX_DEPLOY_KEY="dev:colorful-mole-701|..." npx convex deploy
+```
+
+> **Un solo deployment para todos.** Si dos ramas despliegan al mismo Convex se
+> pisan el schema entre ellas: la última en salir borra las tablas e índices que
+> la otra agregó. Que despliegue una sola persona, o desde una sola rama.
+
+## Correr en local
+
+```bash
+# backend: ya está desplegado en la nube, no hace falta levantarlo
+
+cd frogl-frontend
+npm install
+npm run dev          # http://localhost:3000
+```
+
+Si algo se rompe de forma rara después de un cambio — un error de sintaxis en
+una línea que en el archivo está bien — es caché de Turbopack. Matá el server y
+levantalo de nuevo antes de buscar el bug.
+
+### Los checks
+
+```bash
+npm run check        # desde la raíz
+```
+
+Corre los tres: encoder WAV, señales de entrega y resaltado del corrector.
+No necesitan red ni Convex.
+
+
 ## Mapa
 
 | Archivo | Qué es | Dueño |

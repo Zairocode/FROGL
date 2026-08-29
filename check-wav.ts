@@ -1,6 +1,6 @@
 // node check-wav.ts
 import assert from "node:assert";
-import { encodeWav, OUT_RATE } from "./lib/wav.ts";
+import { encodeWav, OUT_RATE } from "./frogl-frontend/lib/wav.ts";
 
 // 1 segundo a 48k -> debe quedar 1 segundo a 16k
 const src = new Float32Array(48000);
