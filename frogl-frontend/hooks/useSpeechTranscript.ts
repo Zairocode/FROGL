@@ -42,18 +42,26 @@ export function useSpeechTranscript() {
   const endSession = useMutation(api.sessions.end);
 
   const cap = usePitchCapture(activeId);
-  const rows = useTranscript(activeId);
+  // Se lee de la SESION, no de la sesion viva. Con activeId, al cerrar el
+  // micro la sesion pasaba a "ended", la query se apagaba y el transcript
+  // desaparecia de pantalla como si se hubiera borrado. Los datos siempre
+  // estuvieron en Convex: el que los soltaba era el front.
+  const rows = useTranscript(session?._id ?? null);
 
   const [elapsedMs, setElapsedMs] = useState(0);
   const [levels, setLevels] = useState<number[]>(() => Array(LEVELS).fill(0));
 
   useEffect(() => {
-    if (!live?.startedAt) return setElapsedMs(0);
-    const tick = () => setElapsedMs(Date.now() - live.startedAt!);
+    const t0 = session?.startedAt;
+    if (!t0) return setElapsedMs(0);
+    // Terminada la sesion el cronometro se congela en la duracion real,
+    // en vez de volver a cero o seguir corriendo para siempre.
+    if (session?.endedAt) return setElapsedMs(session.endedAt - t0);
+    const tick = () => setElapsedMs(Date.now() - t0);
     tick();
     const id = window.setInterval(tick, 200);
     return () => window.clearInterval(id);
-  }, [live?.startedAt]);
+  }, [session?.startedAt, session?.endedAt]);
 
   // El espectrograma quiere una serie, no un valor suelto.
   const levelRef = useRef(0);
@@ -111,12 +119,12 @@ export function useSpeechTranscript() {
 
   const exportTranscript = useCallback(
     (): TranscriptExport => ({
-      startedAt: live?.startedAt ?? 0,
+      startedAt: session?.startedAt ?? 0,
       endedAt: session?.endedAt ?? null,
       durationMs: elapsedMs,
       segments,
     }),
-    [live?.startedAt, session?.endedAt, elapsedMs, segments],
+    [session?.startedAt, session?.endedAt, elapsedMs, segments],
   );
 
   const downloadJson = useCallback(() => {
@@ -138,7 +146,7 @@ export function useSpeechTranscript() {
     // Ya no depende de que el navegador tenga Web Speech: graba y listo.
     supported: true,
     error: cap.error,
-    startedAt: live?.startedAt ?? null,
+    startedAt: session?.startedAt ?? null,
     elapsedMs,
     elapsedLabel: formatMs(elapsedMs),
     levels,

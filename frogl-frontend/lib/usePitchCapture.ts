@@ -57,8 +57,24 @@ export function usePitchCapture(
     clipTimer: null as ReturnType<typeof setTimeout> | null,
     acc: [] as number[],
     on: false,
+    // Clips decodificandose o subiendo ahora mismo. El microfono y el
+    // AudioContext NO se sueltan mientras esto sea > 0.
+    pending: 0,
     sid: null as Id<"sessions"> | null,
   });
+
+  // Suelta microfono y AudioContext, pero SOLO cuando no queda nada en vuelo.
+  // Antes stop() cerraba el contexto de una y el onstop del ultimo clip se
+  // encontraba con un ctx muerto al decodificar: se perdian los ultimos
+  // segundos del pitch, que es justo donde va el pedido.
+  const liberar = useCallback(() => {
+    const s = st.current;
+    if (s.on || s.pending > 0) return;
+    s.stream?.getTracks().forEach((t) => t.stop());
+    s.stream = null;
+    void s.ctx?.close();
+    s.ctx = null;
+  }, []);
 
   const stop = useCallback(() => {
     const s = st.current;
@@ -68,20 +84,19 @@ export function usePitchCapture(
     if (s.clipTimer) clearTimeout(s.clipTimer);
     s.frameTimer = s.sampleTimer = s.clipTimer = null;
     try {
+      // Esto vacia lo que quedo grabado aunque no llegue a los 6s, y dispara
+      // el onstop que lo transcribe. Por eso no se espera al clip completo.
       if (s.rec && s.rec.state !== "inactive") s.rec.stop();
     } catch {
       // ya estaba frenado
     }
     s.rec = null;
-    s.stream?.getTracks().forEach((t) => t.stop());
-    s.stream = null;
-    void s.ctx?.close();
-    s.ctx = null;
     s.acc = [];
     setRecording(false);
     setInterim("");
     setLevel(0);
-  }, []);
+    liberar();
+  }, [liberar]);
 
   const start = useCallback(
     async (override?: Id<"sessions">) => {
@@ -155,7 +170,8 @@ export function usePitchCapture(
         };
         rec.onstop = async () => {
           if (s.on) grabarClip(); // el siguiente clip arranca ya
-          if (partes.length === 0) return;
+          if (partes.length === 0) return liberar();
+          s.pending++;
           try {
             const bytes = await new Blob(partes).arrayBuffer();
             const audio = await ctx.decodeAudioData(bytes);
@@ -167,6 +183,9 @@ export function usePitchCapture(
           } catch (err) {
             console.warn("[FROGL] no se pudo transcribir el clip:", err);
             setInterim("");
+          } finally {
+            s.pending--;
+            liberar(); // el ultimo clip en salir apaga la luz
           }
         };
         rec.start();
@@ -182,7 +201,7 @@ export function usePitchCapture(
 
       setRecording(true);
     },
-    [sessionId, sample, ingest, silenceThreshold],
+    [sessionId, sample, ingest, silenceThreshold, liberar],
   );
 
   // Suelta el microfono si el componente se desmonta a mitad del pitch.
