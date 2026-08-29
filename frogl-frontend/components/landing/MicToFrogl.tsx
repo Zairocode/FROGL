@@ -3,17 +3,15 @@
 import { animate } from "animejs";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
+import { MicFallback } from "@/components/landing/MicFallback";
+import { WebGLErrorBoundary } from "@/components/landing/WebGLGuard";
 import { prefersReducedMotion } from "@/lib/motion";
 
 const MicScene = dynamic(
   () => import("@/components/landing/MicMesh").then((m) => m.MicScene),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-full w-full items-center justify-center">
-        <div className="h-24 w-10 rounded-md bg-[#2a2e33]" />
-      </div>
-    ),
+    loading: () => <MicFallback />,
   },
 );
 
@@ -134,7 +132,9 @@ export function MicToFrogl({ resolve, onBrandReady }: Props) {
           className="absolute inset-0 translate-y-[18%] sm:translate-y-[20%]"
           aria-hidden
         >
-          <MicScene spinning={phase === "mic"} />
+          <WebGLErrorBoundary fallback={<MicFallback />}>
+            <MicScene spinning={phase === "mic"} />
+          </WebGLErrorBoundary>
         </div>
       ) : null}
       {showBrand ? (

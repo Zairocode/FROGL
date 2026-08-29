@@ -24,12 +24,35 @@ export function LandingPage() {
   return (
     <main>
       <section className="relative min-h-[calc(100svh-4rem)] overflow-hidden px-5">
+        {/* glow + viñeta de escena */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          aria-hidden
+          style={{
+            background: [
+              "radial-gradient(ellipse 50% 40% at 50% 58%, rgba(255,143,171,0.14), transparent 65%)",
+              "radial-gradient(ellipse 42% 36% at 62% 48%, rgba(255,232,210,0.1), transparent 55%)",
+              "radial-gradient(ellipse at center, transparent 28%, rgba(10,12,14,0.55) 100%)",
+            ].join(", "),
+          }}
+        />
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-bg via-bg/40 to-transparent"
+          aria-hidden
+        />
+
         <div className="pointer-events-none absolute inset-x-5 top-[7%] z-10 flex justify-center sm:top-[8%]">
           <ConsoleType lines={PROBLEM_LINES} onDone={onConsoleDone} />
         </div>
 
-        <div className="flex min-h-[calc(100svh-4rem)] w-full flex-col items-center justify-center pb-[18vh] pt-[8vh]">
-          <MicToFrogl resolve={consoleDone} onBrandReady={onBrandReady} />
+        <div className="relative z-[1] flex min-h-[calc(100svh-4rem)] w-full flex-col items-center justify-center pb-[18vh] pt-[8vh]">
+          <div className="relative w-full max-w-xl">
+            <div
+              className="pointer-events-none absolute left-1/2 top-1/2 h-[70%] w-[70%] -translate-x-1/2 -translate-y-[20%] rounded-full bg-[radial-gradient(circle,rgba(255,200,170,0.18),transparent_70%)] blur-2xl"
+              aria-hidden
+            />
+            <MicToFrogl resolve={consoleDone} onBrandReady={onBrandReady} />
+          </div>
         </div>
 
         <div
@@ -98,7 +121,7 @@ export function LandingPage() {
 
       <section
         id="faq"
-        className="mx-auto max-w-xl px-5 pb-20 pt-12 text-center"
+        className="mx-auto max-w-xl px-5 pb-12 pt-12 text-center"
       >
         <p className="label-caps">FAQ</p>
         <p className="mt-3 text-fg-muted">
@@ -106,6 +129,18 @@ export function LandingPage() {
           cuenta decide tirarle.
         </p>
       </section>
+
+      <footer className="border-t border-border/40 px-5 py-8 text-center">
+        <a
+          href="/privacidad"
+          className="text-[0.75rem] font-semibold tracking-[0.14em] text-fg-muted uppercase hover:text-fg"
+        >
+          Privacidad
+        </a>
+        <p className="mt-2 text-xs text-fg-muted/80">
+          La transcripción vive solo en tu navegador.
+        </p>
+      </footer>
     </main>
   );
 }

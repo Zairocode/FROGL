@@ -189,6 +189,22 @@ body {
   animation: ring-scroll 28s linear infinite;
 }
 
+/* Canvas del mic: elipse difuminada (sin borde cuadrado) */
+.mic-scene-mask {
+  border-radius: 50%;
+  overflow: hidden;
+  -webkit-mask-image: radial-gradient(
+    ellipse 68% 72% at 50% 48%,
+    #000 42%,
+    transparent 78%
+  );
+  mask-image: radial-gradient(
+    ellipse 68% 72% at 50% 48%,
+    #000 42%,
+    transparent 78%
+  );
+}
+
 @keyframes ring-scroll {
   from {
     transform: translateX(0);

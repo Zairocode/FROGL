@@ -3,28 +3,25 @@
 import { useEffect, useRef, useState } from "react";
 import { prefersReducedMotion } from "@/lib/motion";
 
-type Mode = "type" | "hold" | "erase";
+type Mode = "type" | "hold";
 
 type Props = {
   lines: string[];
   charMs?: number;
-  eraseMs?: number;
   holdMs?: number;
-  /** Se llama tras borrar también la última oración */
+  /** Se llama tras limpiar la última oración */
   onDone?: () => void;
   className?: string;
-  /** Oculta el bloque (p. ej. al pasar a FROGL) */
   hidden?: boolean;
 };
 
 /**
- * Una oración a la vez: escribe → pausa → borra → siguiente.
- * La última también se borra; luego onDone.
+ * Escribe → pausa → limpia de golpe → siguiente.
+ * Sin borrado carácter a carácter.
  */
 export function ConsoleType({
   lines,
   charMs = 36,
-  eraseMs = 18,
   holdMs = 900,
   onDone,
   className = "",
@@ -64,32 +61,23 @@ export function ConsoleType({
       return () => window.clearTimeout(id);
     }
 
-    if (mode === "hold") {
-      const id = window.setTimeout(() => setMode("erase"), 0);
-      return () => window.clearTimeout(id);
-    }
-
-    // erase (incluye la última oración)
-    if (text.length > 0) {
-      const id = window.setTimeout(() => {
-        setText((t) => t.slice(0, -1));
-      }, eraseMs);
-      return () => window.clearTimeout(id);
-    }
-
-    const isLast = lineIdx === lines.length - 1;
-    if (isLast) {
-      if (!finishedRef.current) {
-        finishedRef.current = true;
-        setDone(true);
-        onDoneRef.current?.();
+    // hold → limpia al instante y sigue
+    const id = window.setTimeout(() => {
+      setText("");
+      const isLast = lineIdx === lines.length - 1;
+      if (isLast) {
+        if (!finishedRef.current) {
+          finishedRef.current = true;
+          setDone(true);
+          onDoneRef.current?.();
+        }
+        return;
       }
-      return;
-    }
-
-    setLineIdx((i) => i + 1);
-    setMode("type");
-  }, [charMs, done, eraseMs, holdMs, lineIdx, lines, mode, text]);
+      setLineIdx((i) => i + 1);
+      setMode("type");
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [charMs, done, holdMs, lineIdx, lines, mode, text]);
 
   return (
     <div

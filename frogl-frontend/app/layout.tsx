@@ -22,6 +22,14 @@ export const metadata: Metadata = {
   title: "FROGL — evaluador de pitches",
   description:
     "Presentás. El jurado híbrido reacciona en vivo y te puntúa.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.png", type: "image/png", sizes: "48x48" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
