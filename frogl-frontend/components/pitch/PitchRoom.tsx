@@ -175,7 +175,7 @@ export function PitchRoom() {
         </div>
         <button
           type="button"
-          onClick={speech.downloadJson}
+          onClick={speech.downloadTxt}
           disabled={speech.segments.length === 0}
           className="shrink-0 rounded-full border border-border px-4 py-2 text-xs font-medium text-fg-muted hover:border-fg-muted hover:text-fg disabled:opacity-40"
         >
@@ -194,7 +194,7 @@ export function PitchRoom() {
         <section className="relative min-h-0 flex-1 overflow-hidden lg:flex-[4]">
           <PresenterCamera />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/25" />
-          <div className="absolute inset-x-0 bottom-6 flex justify-center sm:bottom-8">
+          <div className="absolute inset-x-0 bottom-6 flex flex-col items-center gap-3 sm:bottom-8">
             <MicSpectrogram
               listening={speech.listening}
               disabled={!speech.supported}
@@ -205,6 +205,21 @@ export function PitchRoom() {
                 speech.listening ? speech.stop() : speech.start()
               }
             />
+            {speech.listening && (
+              <button
+                type="button"
+                onClick={() =>
+                  speech.paused ? speech.resume() : speech.pause()
+                }
+                className={`pointer-events-auto rounded-full border px-4 py-1.5 text-sm backdrop-blur transition-colors ${
+                  speech.paused
+                    ? "border-accent-amber bg-accent-amber/20 text-accent-amber"
+                    : "border-border/80 bg-bg/70 text-fg-muted hover:text-fg"
+                }`}
+              >
+                {speech.paused ? "Seguir grabando" : "Pausa"}
+              </button>
+            )}
           </div>
         </section>
 

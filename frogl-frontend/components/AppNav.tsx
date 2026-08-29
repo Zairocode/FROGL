@@ -56,9 +56,6 @@ export function AppNav() {
           <Link href="/preparar" className="hover:text-fg">
             Preparar
           </Link>
-          <Link href="/estudio" className="hover:text-fg">
-            Estudio
-          </Link>
           {role === "pitcher" ? (
             <Link
               href="/pitch"

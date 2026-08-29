@@ -133,22 +133,38 @@ export function useSpeechTranscript() {
     [session?.startedAt, session?.endedAt, elapsedMs, segments],
   );
 
-  const downloadJson = useCallback(() => {
-    const blob = new Blob([JSON.stringify(exportTranscript(), null, 2)], {
-      type: "application/json",
-    });
+  // Texto plano y no JSON: esto lo abre una persona para releer su pitch,
+  // no un programa. El JSON no lo pedia nadie.
+  const downloadTxt = useCallback(() => {
+    const x = exportTranscript();
+    const cuerpo = [
+      session?.topic ? `Tema: ${session.topic}` : null,
+      `Duracion: ${formatMs(x.durationMs)}`,
+      `Fecha: ${new Date(x.startedAt || Date.now()).toLocaleString("es-AR")}`,
+      "",
+      "-".repeat(48),
+      "",
+      ...x.segments.map((seg) => `[${formatMs(seg.startMs)}] ${seg.text}`),
+    ]
+      .filter((l) => l !== null)
+      .join("\n");
+
+    const blob = new Blob([cuerpo], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `frogl-pitch-${Date.now()}.json`;
+    a.download = `pitch-${new Date().toISOString().slice(0, 10)}.txt`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [exportTranscript]);
+  }, [exportTranscript, session?.topic]);
 
   return {
     segments,
     interim: cap.interim,
     listening: cap.recording,
+    paused: cap.paused,
+    pause: cap.pause,
+    resume: cap.resume,
     // Ya no depende de que el navegador tenga Web Speech: graba y listo.
     supported: true,
     error: cap.error,
@@ -159,6 +175,6 @@ export function useSpeechTranscript() {
     start,
     stop,
     exportTranscript,
-    downloadJson,
+    downloadTxt,
   };
 }

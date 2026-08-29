@@ -126,3 +126,8 @@ export function useSpokenQuestions(
 
   return questions;
 }
+
+/** Sesiones que un jurado puede mirar ahora mismo. */
+export function useOpenSessions() {
+  return useQuery(api.live.openForJury) ?? [];
+}

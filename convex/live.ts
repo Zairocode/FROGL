@@ -91,3 +91,72 @@ export const resolveAnnotation = mutation({
   handler: (ctx, { annotationId }) =>
     ctx.db.patch(annotationId, { resolved: true }),
 });
+
+// ============================================================
+//  LO QUE UN JURADO HUMANO NECESITA
+//  Antes entraba a la sala y no veia nada: ni que sesiones habia
+//  abiertas, ni lo que el expositor estaba diciendo, ni forma de
+//  dar su veredicto.
+// ============================================================
+
+// Sesiones que un jurado puede mirar: las que estan en vivo primero, y
+// despues las que ya cerraron pero siguen en deliberacion.
+export const openForJury = query({
+  args: {},
+  handler: async (ctx) => {
+    const recientes = await ctx.db.query("sessions").order("desc").take(25);
+    return recientes
+      .filter(
+        (s) =>
+          !s.title.startsWith("[fixture]") &&
+          (s.status === "live" || s.phase === "jury" || s.phase === "review"),
+      )
+      .map((s) => ({
+        _id: s._id,
+        title: s.title,
+        topic: s.topic ?? null,
+        presenterName: s.presenterName,
+        status: s.status,
+        phase: s.phase ?? null,
+        startedAt: s.startedAt ?? null,
+      }));
+  },
+});
+
+// El veredicto de un humano. Se guarda en la misma tabla que el de los
+// agentes: el front no distingue quien puntuo.
+export const submitVerdict = mutation({
+  args: {
+    sessionId: v.id("sessions"),
+    userId: v.string(),
+    total: v.number(),
+    verdict: v.string(),
+    funciono: v.optional(v.string()),
+    romper: v.optional(v.string()),
+    hacer: v.optional(v.string()),
+  },
+  handler: async (ctx, { sessionId, userId, ...voto }) => {
+    const seats = await ctx.db
+      .query("seats")
+      .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
+      .collect();
+    const mine = seats.find((s) => s.userId === userId);
+    if (!mine) throw new Error("Todavia no estas sentado en esta sala");
+
+    // Si ya habia votado, se reemplaza en vez de acumular.
+    const previos = await ctx.db
+      .query("scores")
+      .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
+      .collect();
+    for (const p of previos.filter((p) => p.seatId === mine._id)) {
+      await ctx.db.delete(p._id);
+    }
+
+    return ctx.db.insert("scores", {
+      sessionId,
+      seatId: mine._id,
+      breakdown: [],
+      ...voto,
+    });
+  },
+});

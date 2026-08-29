@@ -47,6 +47,7 @@ export function usePitchCapture(
   // Clips transcritos. Si queda en 0 con el nivel moviendose, el problema
   // esta en la transcripcion y no en el microfono.
   const [heard, setHeard] = useState(0);
+  const [paused, setPaused] = useState(false);
 
   const st = useRef({
     stream: null as MediaStream | null,
@@ -60,6 +61,11 @@ export function usePitchCapture(
     // Clips decodificandose o subiendo ahora mismo. El microfono y el
     // AudioContext NO se sueltan mientras esto sea > 0.
     pending: 0,
+    // En pausa el microfono sigue abierto pero no se graban clips nuevos.
+    // Soltar el stream y volver a pedirlo haria que Chrome pregunte permiso
+    // otra vez en medio del pitch.
+    paused: false,
+    grabar: null as (() => void) | null,
     sid: null as Id<"sessions"> | null,
   });
 
@@ -92,6 +98,9 @@ export function usePitchCapture(
     }
     s.rec = null;
     s.acc = [];
+    s.paused = false;
+    s.grabar = null;
+    setPaused(false);
     setRecording(false);
     setInterim("");
     setLevel(0);
@@ -154,7 +163,7 @@ export function usePitchCapture(
       // Un clip por grabacion, no timeslices: los pedazos de MediaRecorder
       // despues del primero no traen cabecera y no se pueden decodificar solos.
       const grabarClip = () => {
-        if (!s.on || !s.stream) return;
+        if (!s.on || s.paused || !s.stream) return;
         let rec: MediaRecorder;
         try {
           rec = new MediaRecorder(s.stream);
@@ -169,7 +178,9 @@ export function usePitchCapture(
           if (e.data.size > 0) partes.push(e.data);
         };
         rec.onstop = async () => {
-          if (s.on) grabarClip(); // el siguiente clip arranca ya
+          // En pausa no se encadena el siguiente, pero este se transcribe
+          // igual: lo que ya dijiste no se tira.
+          if (s.on && !s.paused) grabarClip();
           if (partes.length === 0) return liberar();
           s.pending++;
           try {
@@ -197,6 +208,9 @@ export function usePitchCapture(
           }
         }, CHUNK_MS);
       };
+      s.grabar = grabarClip;
+      s.paused = false;
+      setPaused(false);
       grabarClip();
 
       setRecording(true);
@@ -204,8 +218,30 @@ export function usePitchCapture(
     [sessionId, sample, ingest, silenceThreshold, liberar],
   );
 
+  const pause = useCallback(() => {
+    const s = st.current;
+    if (!s.on || s.paused) return;
+    s.paused = true;
+    if (s.clipTimer) clearTimeout(s.clipTimer);
+    try {
+      // Corta el clip actual: se transcribe lo grabado hasta aca.
+      if (s.rec && s.rec.state !== "inactive") s.rec.stop();
+    } catch {
+      // ya estaba frenado
+    }
+    setPaused(true);
+  }, []);
+
+  const resume = useCallback(() => {
+    const s = st.current;
+    if (!s.on || !s.paused) return;
+    s.paused = false;
+    setPaused(false);
+    s.grabar?.();
+  }, []);
+
   // Suelta el microfono si el componente se desmonta a mitad del pitch.
   useEffect(() => stop, [stop]);
 
-  return { recording, interim, level, error, heard, start, stop };
+  return { recording, paused, interim, level, error, heard, start, pause, resume, stop };
 }
