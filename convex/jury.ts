@@ -11,6 +11,10 @@ import { analyze } from "./delivery";
 import { CHAT_MODEL } from "./model";
 
 const MODEL = CHAT_MODEL;
+// Neutro salvo que el perfil diga otra cosa: cuatro jurados con el mismo
+// acento se notan como el mismo personaje repetido.
+const DIALECTO_POR_DEFECTO =
+  "espanol neutro de Latinoamerica, sin modismos de ningun pais en particular";
 const KINDS = ["hooked", "confused", "bored", "skeptical", "convinced"] as const;
 
 // Anotado a mano: sin esto TS entra en ciclo (action -> internal.jury.bundle -> api.d.ts).
@@ -124,7 +128,8 @@ export const react = action({
         b.profile.persona,
         contextNote(b.profile, b.seat),
         notes.length ? `Sabes esto del tema:\n- ${notes.join("\n- ")}` : "",
-        "Estas escuchando un pitch EN VIVO. Reacciona en una linea, en primera persona, en espanol rioplatense. Nada de resumir lo que escuchaste.",
+        "Estas escuchando un pitch EN VIVO. Reacciona en una linea, en primera persona. Nada de resumir lo que escuchaste.",
+        `Hablas en ${b.profile.dialect ?? DIALECTO_POR_DEFECTO}.`,
       ]
         .filter(Boolean)
         .join("\n\n"),

@@ -44,6 +44,8 @@ export const jurors = query({
       out.push({
         seatId: seat._id,
         kind: seat.kind,
+        // El front matchea por slug (JurySlug), no por id de asiento.
+        slug: profile?.slug ?? null,
         name: profile?.name ?? seat.displayName,
         emoji: profile?.emoji ?? "",
         color: profile?.color ?? seat.color ?? "#38bdf8",
@@ -69,6 +71,7 @@ export const preview = query({
     return profiles.map((p) => ({
       seatId: p._id as string,
       kind: "agent" as const,
+      slug: p.slug,
       name: p.name,
       emoji: p.emoji,
       color: p.color ?? "#38bdf8",

@@ -32,6 +32,9 @@ export default defineSchema({
     name: v.string(),
     emoji: v.string(),
     color: v.optional(v.string()),
+    // Como suena. Estaba hardcodeado "rioplatense" en el prompt y salian
+    // todos hablando igual. Se edita por jurado desde el dashboard.
+    dialect: v.optional(v.string()),
     persona: v.string(),
     rubric: v.array(
       v.object({
