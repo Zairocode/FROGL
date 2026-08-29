@@ -1,0 +1,15 @@
+---
+description: Estructura y convenciones del backend NestJS
+globs: backend/**/*
+alwaysApply: false
+---
+
+# Backend NestJS
+
+Código de la API solo en `backend/`. Un dominio = un módulo en `src/modules/<dominio>/` (controller, service, module) e importar en `AppModule`.
+
+Compartido en `src/common/` (decorators, filters, guards, interceptors, pipes, dto, exceptions, utils, constants). Configuración en `src/config/`.
+
+Bootstrap: escuchar `process.env.PORT` (fallback 3000) en `0.0.0.0`. No hardcodear el puerto. Mantener `GET /health` para Railway.
+
+Local: `npm run start:dev` en el host (Linux Mint). No usar Docker para desarrollar ni testear.

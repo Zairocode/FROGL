@@ -1,0 +1,16 @@
+---
+description: Docker y Railway son solo producción, no desarrollo local
+globs: backend/Dockerfile,backend/railway.toml,backend/.dockerignore
+alwaysApply: false
+---
+
+# Railway / Docker
+
+`backend/Dockerfile` construye la imagen de **producción** en Railway. No es el flujo de desarrollo.
+
+- Root Directory del servicio Railway: `backend`
+- Multi-stage (deps → build → runtime), usuario no-root, `CMD` en forma exec
+- Healthcheck: `GET /health` (`backend/railway.toml`)
+- Secretos en el dashboard de Railway, nunca en la imagen ni en git
+
+Si se toca el Dockerfile, no añadir Compose ni instrucciones de `docker run` para local. En Linux Mint el backend se corre con Node nativo.
