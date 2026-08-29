@@ -25,7 +25,9 @@ export function FrogMascot({
       duration: 1800,
       loop: true,
     });
-    return () => animation.pause();
+    return () => {
+      animation.pause();
+    };
   }, []);
 
   return (

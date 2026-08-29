@@ -1,30 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CoachingCues } from "./CoachingCues";
 import { ExposureScore } from "./ExposureScore";
 import { JurorAvatar } from "./JurorAvatar";
 import { LiveCamera } from "./LiveCamera";
 import { SpeechBubble } from "./SpeechBubble";
+import { LyricsTranscript } from "@/components/pitch/LyricsTranscript";
+import { MicSpectrogram } from "@/components/pitch/MicSpectrogram";
+import { useSpeechTranscript } from "@/hooks/useSpeechTranscript";
 import { useAccount } from "@/lib/account-context";
 import type { PublicJuror } from "@/lib/accounts";
 import { useJuryChat } from "@/lib/chat-context";
 import { latestByJuror } from "@/lib/chat-store";
-
-function formatTimer(ms: number) {
-  const total = Math.floor(ms / 1000);
-  const m = String(Math.floor(total / 60)).padStart(2, "0");
-  const s = String(total % 60).padStart(2, "0");
-  return `${m}:${s}`;
-}
+import { useCameraLive } from "@/lib/camera-context";
 
 export function PitchRoom() {
   const { messages } = useJuryChat();
   const { online } = useAccount();
-  const [elapsed, setElapsed] = useState(0);
-  const [listening, setListening] = useState(false);
-  const elapsedRef = useRef(0);
-  elapsedRef.current = elapsed;
+  const { live: cameraLive } = useCameraLive();
+  const speech = useSpeechTranscript();
+  const [maxMinutes, setMaxMinutes] = useState(5);
+
   const visible = useMemo(() => {
     const byId = new Map<string, PublicJuror>();
     for (const juror of online) byId.set(juror.id, juror);
@@ -39,6 +36,7 @@ export function PitchRoom() {
     }
     return [...byId.values()];
   }, [messages, online]);
+
   const bubbles = useMemo(
     () =>
       latestByJuror(
@@ -50,58 +48,80 @@ export function PitchRoom() {
   );
 
   useEffect(() => {
-    if (!listening) return;
-    const started = Date.now() - elapsedRef.current;
-    const id = window.setInterval(() => setElapsed(Date.now() - started), 250);
-    return () => window.clearInterval(id);
-  }, [listening]);
+    if (!speech.listening) return;
+    if (speech.elapsedMs >= maxMinutes * 60_000) {
+      speech.stop();
+    }
+  }, [speech.listening, speech.elapsedMs, maxMinutes, speech.stop]);
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 py-8">
       <div className="flex items-center justify-between">
         <p className="label-caps text-accent-teal">Sala de pitch</p>
         <p className="font-[family-name:var(--font-mono)] text-3xl tabular-nums text-fg">
-          {formatTimer(elapsed)}
+          {speech.elapsedLabel}
         </p>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(16rem,0.8fr)]">
-        <LiveCamera />
+        <div className="relative">
+          <LiveCamera />
+          {cameraLive ? (
+            <div className="absolute inset-x-0 bottom-4 z-10 flex justify-center px-3">
+              <MicSpectrogram
+                listening={speech.listening}
+                disabled={!speech.supported}
+                elapsedLabel={speech.elapsedLabel}
+                maxMinutes={maxMinutes}
+                onMaxMinutesChange={setMaxMinutes}
+                onToggle={() =>
+                  speech.listening ? speech.stop() : speech.start()
+                }
+              />
+            </div>
+          ) : null}
+        </div>
+
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
-            <button
-              type="button"
-              onClick={() => setListening((v) => !v)}
-              className={`flex h-16 w-16 items-center justify-center rounded-full border-2 transition-transform hover:scale-[1.03] ${
-                listening
-                  ? "border-accent-teal bg-accent-teal/15 text-accent-teal"
-                  : "border-border bg-bg-elevated text-fg"
-              }`}
-              aria-pressed={listening}
-            >
-              <span className="sr-only">
-                {listening ? "Pausar micrófono" : "Empezar a hablar"}
-              </span>
-              <MicIcon live={listening} />
-            </button>
-            <p className="mt-3 text-sm text-fg-muted">
-              {listening
-                ? "En vivo — el jurado te escucha y te valora"
-                : "Tocá el mic para empezar"}
+          {!cameraLive ? (
+            <p className="text-sm text-fg-muted">
+              Primero proyectá la cámara. Después tocá el mic en la
+              proyección para transcribir.
             </p>
-          </div>
+          ) : (
+            <p className="text-sm text-fg-muted">
+              {speech.listening
+                ? "En vivo — el jurado te escucha y te valora"
+                : "Tocá el mic en la cámara para empezar a transcribir"}
+            </p>
+          )}
+          {speech.error ? (
+            <p className="text-sm text-danger">{speech.error}</p>
+          ) : null}
           <CoachingCues />
           <ExposureScore />
         </div>
       </div>
 
       <section className="mt-8 w-full text-left">
-        <p className="label-caps mb-2">Transcript</p>
-        <p className="min-h-[5rem] text-lg leading-relaxed text-fg-muted">
-          {listening
-            ? "Cuando conectemos el mic, tus frases aparecen acá. El jurado te tira globos, coaching y emojis — no ves su chat."
-            : "Tu pitch se va a leer acá, en vivo."}
-        </p>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <p className="label-caps">Transcript</p>
+          <button
+            type="button"
+            onClick={speech.downloadJson}
+            disabled={speech.segments.length === 0}
+            className="text-xs font-medium text-fg-muted hover:text-fg disabled:opacity-40"
+          >
+            Exportar
+          </button>
+        </div>
+        <div className="h-56 overflow-hidden rounded-2xl border border-border/60 bg-bg-elevated/40">
+          <LyricsTranscript
+            segments={speech.segments}
+            interim={speech.interim}
+            listening={speech.listening}
+          />
+        </div>
       </section>
 
       <section className="mt-auto grid grid-cols-2 gap-4 pt-4 lg:grid-cols-4">
@@ -133,32 +153,5 @@ export function PitchRoom() {
         )}
       </section>
     </main>
-  );
-}
-
-function MicIcon({ live }: { live: boolean }) {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect
-        x="9"
-        y="3"
-        width="6"
-        height="11"
-        rx="3"
-        fill={live ? "currentColor" : "var(--fg)"}
-      />
-      <path
-        d="M6 11a6 6 0 0 0 12 0"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 17v4"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }

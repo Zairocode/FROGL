@@ -20,8 +20,7 @@ const mono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "FROGL — evaluador de pitches",
-  description:
-    "Presentás. El jurado híbrido reacciona en vivo y te puntúa.",
+  description: "Sala de pitch con jurado híbrido en vivo",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
