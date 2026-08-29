@@ -1,26 +1,55 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Canvas — fixed charcoal (see design.md) */
+  --background: #212529;
+  --foreground: #f8f9fa;
+
+  --bg: #212529;
+  --bg-elevated: #2c3034;
+  --fg: #f8f9fa;
+  --fg-muted: #adb5bd;
+  --border: #3d4349;
+
+  --accent-pink: #ff8fab;
+  --accent-teal: #2dd4a8;
+  --accent-cyan: #38bdf8;
+  --accent-amber: #fbbf24;
+  --danger: #f87171;
+
+  --jury-tecnico: #38bdf8;
+  --jury-tiktok: #ff8fab;
+  --jury-late: #fbbf24;
+  --jury-actitud: #2dd4a8;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-border: var(--border);
+
+  --color-accent-pink: var(--accent-pink);
+  --color-accent-teal: var(--accent-teal);
+  --color-accent-cyan: var(--accent-cyan);
+  --color-accent-amber: var(--accent-amber);
+  --color-danger: var(--danger);
+
+  --color-jury-tecnico: var(--jury-tecnico);
+  --color-jury-tiktok: var(--jury-tiktok);
+  --color-jury-late: var(--jury-late);
+  --color-jury-actitud: var(--jury-actitud);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
