@@ -15,6 +15,7 @@ import type * as jury from "../jury.js";
 import type * as live from "../live.js";
 import type * as loop from "../loop.js";
 import type * as model from "../model.js";
+import type * as panel from "../panel.js";
 import type * as profiles from "../profiles.js";
 import type * as rag from "../rag.js";
 import type * as seats from "../seats.js";
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   live: typeof live;
   loop: typeof loop;
   model: typeof model;
+  panel: typeof panel;
   profiles: typeof profiles;
   rag: typeof rag;
   seats: typeof seats;

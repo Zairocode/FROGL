@@ -43,8 +43,11 @@ export const messages = query({
 export const send = mutation({
   args: {
     sessionId: v.id("sessions"),
+    accountId: v.string(),
     author: v.string(),
+    color: v.string(),
     text: v.string(),
+    cue: v.optional(v.string()),
   },
   handler: (ctx, args) => ctx.db.insert("messages", args),
 });

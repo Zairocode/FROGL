@@ -16,6 +16,21 @@ export const listLive = query({
       .collect(),
 });
 
+export const current = query({
+  args: {},
+  handler: async (ctx) => {
+    const live = await ctx.db
+      .query("sessions")
+      .withIndex("by_status", (q) => q.eq("status", "live"))
+      .first();
+    if (live) return live;
+    // Las sesiones de tuning:dryRun ensucian el front si son las mas
+    // recientes. Se ignoran por el prefijo del titulo.
+    const recientes = await ctx.db.query("sessions").order("desc").take(20);
+    return recientes.find((s) => !s.title.startsWith("[fixture]")) ?? null;
+  },
+});
+
 // Crea la sesion y sienta a los 4 agentes. Los humanos se suman despues
 // con seats.joinHuman; si no aparece ninguno, el jurado ya esta completo.
 export const create = mutation({

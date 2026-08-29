@@ -208,9 +208,16 @@ export const score = action({
       // Las reacciones en vivo SI quedan con temperatura default: ahi la
       // variedad es deseable.
       temperature: 0,
-      prompt: `Pitch escuchado:\n\n"${heard}"\n\nCalifica de 0 a 10 cada criterio: ${b.profile.rubric
-        .map((r) => `${r.key} (${r.label})`)
-        .join(", ")}. Cerra con un veredicto de dos lineas.`,
+      prompt: [
+        `Pitch escuchado:\n\n"${heard}"`,
+        "Califica de 0 a 10 cada criterio. Respeta la escala de cada uno:",
+        ...b.profile.rubric.map(
+          (r) =>
+            `- ${r.key} (${r.label})` +
+            (r.anchor ? `\n  Escala: ${r.anchor}` : ""),
+        ),
+        "Cerra con un veredicto de dos lineas.",
+      ].join("\n\n"),
       output: Output.object({
         schema: z.object({
           criterios: z.object(shape),
