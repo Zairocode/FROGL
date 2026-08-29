@@ -3,6 +3,7 @@ import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { embed } from "ai";
+import { embedding as embeddingModel } from "./model";
 
 // 1536 dims: tiene que coincidir con el vectorIndex del schema.
 export const EMBED_MODEL = "openai/text-embedding-3-small";
@@ -29,7 +30,7 @@ export const byIds = internalQuery({
 export const ingest = action({
   args: { tag: v.string(), source: v.string(), text: v.string() },
   handler: async (ctx, { tag, source, text }) => {
-    const { embedding } = await embed({ model: EMBED_MODEL, value: text });
+    const { embedding } = await embed({ model: await embeddingModel(EMBED_MODEL), value: text });
     await ctx.runMutation(internal.rag.save, { tag, source, text, embedding });
   },
 });
@@ -42,7 +43,7 @@ export async function retrieve(
   limit = 4,
 ): Promise<string[]> {
   if (!queryText.trim()) return [];
-  const { embedding } = await embed({ model: EMBED_MODEL, value: queryText });
+  const { embedding } = await embed({ model: await embeddingModel(EMBED_MODEL), value: queryText });
   const hits = await ctx.vectorSearch("chunks", "by_embedding", {
     vector: embedding,
     filter: (q) => q.eq("tag", tag),

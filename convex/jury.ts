@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { retrieve } from "./rag";
+import { chat } from "./model";
 import type { Doc } from "./_generated/dataModel";
 
 const MODEL = "anthropic/claude-sonnet-5";
@@ -101,7 +102,7 @@ export const react = action({
     const notes = await retrieve(ctx, b.profile.retrievalTag, heard.slice(-800));
 
     const { output } = await generateText({
-      model: MODEL,
+      model: await chat(MODEL),
       system: [
         b.profile.persona,
         contextNote(b.profile, b.seat),
@@ -161,7 +162,7 @@ export const score = action({
     const heard = visible.map((l) => l.text).join(" ");
 
     const { output } = await generateText({
-      model: MODEL,
+      model: await chat(MODEL),
       system: [
         b.profile.persona,
         contextNote(b.profile, b.seat),
