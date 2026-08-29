@@ -1,88 +1,109 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FrogMascot } from "./characters/FrogMascot";
+import { ConsoleType } from "@/components/landing/ConsoleType";
+import { MicToFrogl } from "@/components/landing/MicToFrogl";
 import { useRole } from "@/lib/role-context";
+
+const PROBLEM_LINES = [
+  "Formular un pitch es molesto.",
+  "Te enfrentás a jueces y no sabés cómo comunicar tu idea.",
+  "Ensayás solo… y el feedback llega tarde, o no llega.",
+];
 
 export function LandingPage() {
   const router = useRouter();
   const { setRole } = useRole();
+  const [consoleDone, setConsoleDone] = useState(false);
+  const [brandReady, setBrandReady] = useState(false);
+
+  const onConsoleDone = useCallback(() => setConsoleDone(true), []);
+  const onBrandReady = useCallback(() => setBrandReady(true), []);
 
   return (
     <main>
-      <section className="relative flex min-h-[calc(100svh-4rem)] flex-col items-center justify-center overflow-hidden px-5 pb-20 pt-8 text-center">
-        <div className="type-ring" aria-hidden>
-          <span>LIVE · CUENTA · JURADO · PITCH · GLOBOS · EN VIVO · </span>
-          <span>LIVE · CUENTA · JURADO · PITCH · GLOBOS · EN VIVO · </span>
+      <section className="relative min-h-[calc(100svh-4rem)] overflow-hidden px-5">
+        <div className="pointer-events-none absolute inset-x-5 top-[7%] z-10 flex justify-center sm:top-[8%]">
+          <ConsoleType lines={PROBLEM_LINES} onDone={onConsoleDone} />
         </div>
 
-        <FrogMascot size={260} className="relative z-10" />
+        <div className="flex min-h-[calc(100svh-4rem)] w-full flex-col items-center justify-center pb-[18vh] pt-[8vh]">
+          <MicToFrogl resolve={consoleDone} onBrandReady={onBrandReady} />
+        </div>
 
-        <h1 className="relative z-10 mt-2 font-[family-name:var(--font-display)] text-[length:var(--text-hero)] leading-[0.95] tracking-tight text-fg">
-          FROGL
-        </h1>
-        <p className="relative z-10 mt-4 max-w-md text-lg text-fg-muted">
-          Presentás. Jurados de verdad, cada uno con su cuenta, reaccionan en
-          vivo.
-        </p>
-
-        <div className="relative z-10 mt-8 flex flex-wrap items-center justify-center gap-3">
-          <button
-            type="button"
-            className="cta-primary"
-            onClick={() => {
-              setRole("pitcher");
-              router.push("/pitch");
-            }}
-          >
-            Empezar pitch →
-          </button>
-          <button
-            type="button"
-            className="cta-secondary"
-            onClick={() => router.push("/cuenta")}
-          >
-            Soy jurado
-          </button>
+        <div
+          className={[
+            "absolute inset-x-5 bottom-6 z-10 mx-auto flex max-w-lg flex-col items-center gap-3 text-center transition-all duration-700 sm:bottom-10 sm:gap-5",
+            brandReady
+              ? "translate-y-0 opacity-100"
+              : "pointer-events-none translate-y-3 opacity-0",
+          ].join(" ")}
+        >
+          <p className="font-[family-name:var(--font-display)] text-xl text-fg sm:text-2xl">
+            FROGL tiene la solución.
+          </p>
+          <p className="text-base leading-relaxed text-fg-muted sm:text-lg">
+            Pitches personalizados con agentes de jurado y jurados reales —
+            hibridando la eficacia de la IA y la experiencia de los expertos.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              className="cta-primary"
+              onClick={() => {
+                setRole("pitcher");
+                router.push("/pitch");
+              }}
+            >
+              Empezar pitch →
+            </button>
+            <button
+              type="button"
+              className="cta-secondary"
+              onClick={() => router.push("/cuenta")}
+            >
+              Soy jurado
+            </button>
+          </div>
         </div>
       </section>
 
-      <section id="como" className="mx-auto max-w-3xl px-5 py-20 text-center">
+      <section
+        id="como"
+        className="mx-auto max-w-xl border-t border-border/40 px-5 py-16 text-center"
+      >
         <p className="label-caps">Cómo funciona</p>
-        <h2 className="mt-2 font-[family-name:var(--font-display)] text-[length:var(--text-title)] text-fg">
-          Presentás → reaccionan → te puntúan
-        </h2>
-        <p className="mx-auto mt-4 max-w-lg text-fg-muted">
-          El pitcher habla en su sala. Cada jurado entra con su cuenta a una
-          sala aparte. Esas reacciones aparecen como globos de texto.
+        <p className="mt-3 text-fg-muted">
+          Presentás → el jurado híbrido reacciona en vivo → te puntúan.
         </p>
       </section>
 
-      <section id="jurados" className="mx-auto max-w-xl px-5 py-16 text-center">
+      <section
+        id="jurados"
+        className="mx-auto max-w-xl px-5 py-12 text-center"
+      >
         <p className="label-caps">El panel</p>
-        <h2 className="mt-2 font-[family-name:var(--font-display)] text-[length:var(--text-title)]">
-          Humanos con cuenta. Sin bots.
-        </h2>
-        <p className="mt-4 text-fg-muted">
-          Entrá con un código de referido y tu nombre. Sin mail ni contraseña.
+        <p className="mt-3 text-fg-muted">
+          Código de referido + nombre. Entrá a la sala del jurado.
         </p>
         <button
           type="button"
-          className="cta-primary mt-6"
+          className="cta-primary mt-5"
           onClick={() => router.push("/cuenta")}
         >
           Soy jurado →
         </button>
       </section>
 
-      <section id="faq" className="mx-auto max-w-xl px-5 py-20 text-center">
+      <section
+        id="faq"
+        className="mx-auto max-w-xl px-5 pb-20 pt-12 text-center"
+      >
         <p className="label-caps">FAQ</p>
-        <h2 className="mt-2 font-[family-name:var(--font-display)] text-[length:var(--text-title)]">
-          ¿El pitcher ve el chat del jurado?
-        </h2>
-        <p className="mt-4 text-fg-muted">
-          No. La sala del jurado es privada. Solo le llegan globos con lo que
-          cada cuenta decide tirarle.
+        <p className="mt-3 text-fg-muted">
+          El pitcher no ve el chat del jurado: solo globos con lo que cada
+          cuenta decide tirarle.
         </p>
       </section>
     </main>
