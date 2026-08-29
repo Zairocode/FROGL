@@ -12,11 +12,22 @@ import { v } from "convex/values";
 export const sample = mutation({
   args: {
     sessionId: v.id("sessions"),
-    tMs: v.number(),
     rms: v.number(),
     silentRatio: v.number(),
   },
-  handler: (ctx, args) => ctx.db.insert("delivery", args),
+  handler: async (ctx, { sessionId, rms, silentRatio }) => {
+    const session = await ctx.db.get(sessionId);
+    // Esto es telemetria: si todavia no arranco, se descarta en silencio.
+    // A diferencia de transcript.append, no tira: no queremos que una muestra
+    // temprana rompa el loop de captura del browser.
+    if (!session?.startedAt) return;
+    await ctx.db.insert("delivery", {
+      sessionId,
+      tMs: Date.now() - session.startedAt,
+      rms,
+      silentRatio,
+    });
+  },
 });
 
 export { analyze, type DeliveryReport } from "./deliveryMath";

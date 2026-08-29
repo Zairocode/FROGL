@@ -107,6 +107,48 @@ pésimo y entrega impecable — existe para verificar que **Rosa diverja de Elen
 Si las dos le ponen la misma nota, los perfiles no discriminan y el producto no
 tiene sentido. Ese es el test que importa, no la nota en sí.
 
+## Captura del pitch (para el front)
+
+Del **mismo** stream de micrófono salen dos cosas en paralelo, sin backend,
+sin créditos y sin dependencias nuevas:
+
+| Fuente | Da | Va a |
+|---|---|---|
+| Web Speech API | **qué** dijo | `transcript.append` |
+| Web Audio `AnalyserNode` | **cómo** lo dijo | `delivery.sample` |
+
+Todo está en `lib/usePitchCapture.ts`. El front solo lo llama:
+
+```tsx
+"use client";
+import { usePitchCapture } from "@/lib/usePitchCapture";
+
+const cap = usePitchCapture(sessionId);
+
+<button onClick={cap.recording ? cap.stop : cap.start}>
+  {cap.recording ? "Cortar" : "Empezar a pitchear"}
+</button>
+
+{cap.error && <p>{cap.error}</p>}
+<p>{cap.interim}</p>                        {/* parcial, no llega a Convex */}
+<div style={{ width: cap.level * 400 }} />  {/* VU meter gratis */}
+```
+
+**Llamá a `sessions.start` antes de `cap.start()`** — si no, `transcript.append` tira
+porque no hay `startedAt` contra el cual calcular el tiempo.
+
+Detalles que ya están resueltos adentro:
+
+- Chrome corta el reconocimiento solo tras unos segundos de silencio. El hook lo
+  relanza en `onend`: sin eso el transcript se muere a mitad del pitch.
+- Solo los resultados **finales** van a Convex. Los interinos cambian en cada
+  palabra y llenarían la tabla de basura; se exponen como `interim` para pintarlos.
+- Suelta el micrófono al desmontar.
+- `silenceThreshold` (default 0.015) **hay que calibrarlo en la sala**: mirá
+  `cap.level` con el presentador callado y poné un poco más que eso.
+
+Solo Chrome y Edge. Firefox y Safari no tienen Web Speech API.
+
 ## Transcripción
 
 Arrancamos con la **Web Speech API** del browser: nativa, gratis, sin backend.
@@ -117,7 +159,8 @@ momento en que un jurado hace la pregunta **en voz alta**, que es el que impresi
 
 - [x] Loop que dispara `jury.react` cada `profile.reactEveryMs`
 - [x] Scorecard automático al cerrar la sesión
-- [ ] Sala de pitch (mic + timer + transcript en vivo)
+- [x] Captura de audio: transcript + señales de entrega (`lib/usePitchCapture.ts`)
+- [ ] Sala de pitch (pantalla, usa el hook de arriba)
 - [ ] Panel del jurado (reacciones, preguntas, chat de humanos)
 - [ ] Scorecard final en pantalla
 - [ ] Cargar el corpus del RAG (`corpus:load`) — necesita la key del modelo
