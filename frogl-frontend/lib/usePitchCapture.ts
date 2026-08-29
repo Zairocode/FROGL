@@ -19,7 +19,9 @@ import { encodeWav, toBase64 } from "./wav";
 //  microfono, asi que volvemos a medir volumen y pausas del mismo stream.
 // ============================================================
 
-const CHUNK_MS = 6000; // largo de cada clip que se manda a transcribir
+// 9s en vez de 6: menos llamadas por minuto a Gemini, para no pegarle al
+// rate limit tan seguido cuando hay varias sesiones probando a la vez.
+const CHUNK_MS = 9000;
 const SAMPLE_MS = 3000; // cada cuanto se manda una muestra acustica
 const FRAME_MS = 100; // cada cuanto se lee el analyser
 
@@ -54,6 +56,9 @@ export function usePitchCapture(
   // Clips en la cola de fondo, todavia con esperanza de entrar. No es
   // "perdido": es "tardando".
   const [queued, setQueued] = useState(0);
+  // Varios clips seguidos sin voz detectada: probablemente el volumen no
+  // alcanza, no que nadie este hablando.
+  const [quiet, setQuiet] = useState(false);
   const [paused, setPaused] = useState(false);
 
   const st = useRef({
@@ -83,6 +88,8 @@ export function usePitchCapture(
     // asi un corte de wifi de unos segundos no es una perdida definitiva.
     queue: [] as { wav: string; sid: Id<"sessions">; attempts: number }[],
     queueBusy: false,
+    // Clips consecutivos que Gemini proceso sin encontrar voz.
+    mudo: 0,
   });
 
   // Suelta microfono y AudioContext, pero SOLO cuando no queda nada en vuelo.
@@ -135,7 +142,14 @@ export function usePitchCapture(
 
       let stream: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // noiseSuppression a secas (el default) puede clasificar la voz
+        // como "ruido" en una sala llena de gente y dejarla casi muda: el
+        // pipeline entero funcionaba, pero Gemini transcribia silencio
+        // sobre silencio sin tirar ningun error. autoGainControl
+        // compensa si alguien habla lejos del microfono.
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: { noiseSuppression: false, autoGainControl: true },
+        });
       } catch {
         st.current.on = false;
         return setError("No se pudo abrir el microfono. Revisa los permisos.");
@@ -143,10 +157,12 @@ export function usePitchCapture(
 
       setError(null);
       setHeard(0);
+      setQuiet(false);
       const s = st.current;
       s.stream = stream;
       s.sid = sid;
       s.acc = [];
+      s.mudo = 0;
 
       const ctx = new AudioContext();
       s.ctx = ctx;
@@ -255,7 +271,23 @@ export function usePitchCapture(
             }
             setInterim("");
             if (ok) {
-              if (texto) setHeard((n) => n + 1);
+              if (texto) {
+                setHeard((n) => n + 1);
+                s.mudo = 0;
+                setQuiet(false);
+              } else {
+                // Gemini proceso el clip y no encontro voz: no es un
+                // error de red, es que no llego suficiente senal. Antes
+                // esto era invisible — ni fila, ni error, nada. Si se
+                // repite, es que el volumen no alcanza.
+                s.mudo++;
+                if (s.mudo === 3) {
+                  setQuiet(true);
+                  console.warn(
+                    "[FROGL] 3 clips seguidos sin voz detectada — volumen bajo?",
+                  );
+                }
+              }
             } else {
               // Los 3 intentos rapidos (unos ~4.5s) no alcanzaron. No se
               // tira: pasa a la cola de fondo, que sigue probando cada
@@ -386,6 +418,7 @@ export function usePitchCapture(
     heard,
     lost,
     queued,
+    quiet,
     start,
     pause,
     resume,

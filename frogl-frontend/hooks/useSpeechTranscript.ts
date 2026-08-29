@@ -177,7 +177,9 @@ export function useSpeechTranscript() {
         ? `Se ${cap.lost === 1 ? "perdio 1 tramo" : "perdieron " + cap.lost + " tramos"} de audio: la red no aguanto ni los reintentos de fondo. Lo demas sigue grabando.`
         : cap.queued > 0
           ? `Reintentando ${cap.queued === 1 ? "1 tramo" : cap.queued + " tramos"} de audio por la red. Sigue grabando mientras tanto.`
-          : null),
+          : cap.quiet
+            ? "No se está detectando voz. Acercate al micrófono o subí el volumen."
+            : null),
     startedAt: session?.startedAt ?? null,
     elapsedMs,
     elapsedLabel: formatMs(elapsedMs),

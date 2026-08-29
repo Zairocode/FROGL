@@ -173,10 +173,11 @@ export function PitchRoom() {
       {speech.error && (
         <div
           className={`shrink-0 px-4 py-1.5 text-sm ${
-            // "Reintentando" no es una falla, es la red recuperandose sola.
-            // Pintarlo en rojo asustaria por algo que probablemente se
-            // resuelve en el proximo intento.
-            speech.error.startsWith("Reintentando")
+            // "Reintentando" y "no se detecta voz" no son fallas del sistema:
+            // son avisos accionables (esperá, o acercate al mic). Rojo es
+            // solo para lo que ya se perdio de verdad.
+            speech.error.startsWith("Reintentando") ||
+            speech.error.startsWith("No se está detectando voz")
               ? "bg-accent-amber/15 text-accent-amber"
               : "bg-danger/15 text-danger"
           }`}

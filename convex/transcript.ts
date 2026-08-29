@@ -68,9 +68,16 @@ export const live = query({
 export const ingestAudio = action({
   args: { sessionId: v.id("sessions"), audio: v.string() },
   handler: async (ctx, { sessionId, audio }): Promise<string | null> => {
+    // maxRetries: 0 a proposito. El default del SDK reintenta 3 veces solo
+    // ante un 429, y el cliente TAMBIEN reintenta 3 veces por su cuenta:
+    // eso es hasta 9 llamadas reales a Gemini por un solo clip que
+    // rate-limitea, lo que empeora el 429 en vez de esperarlo. Que falle
+    // rapido aca y que el backoff espaciado del cliente (lib/usePitchCapture.ts)
+    // sea la UNICA capa de reintento.
     const { text } = await transcribe({
       model: await transcription(TRANSCRIBE_MODEL),
       audio,
+      maxRetries: 0,
     });
     const limpio = text.trim();
     if (!limpio) return null;
