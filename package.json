@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "convex:deploy": "convex deploy",
-    "check": "node check-wav.ts && node check-delivery.ts && node check-highlight.ts"
+    "check": "node check-wav.ts && node check-delivery.ts && node check-highlight.ts",
+    "deploy": "node scripts/guard-deploy.mjs && convex deploy"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.57",

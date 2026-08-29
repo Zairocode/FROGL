@@ -59,7 +59,7 @@ Listo. Leen y escriben contra las funciones ya desplegadas y todos ven los mismo
 Empujan al deployment compartido con el deploy key del equipo:
 
 ```bash
-CONVEX_DEPLOY_KEY="dev:colorful-mole-701|..." npx convex deploy
+CONVEX_DEPLOY_KEY="dev:colorful-mole-701|..." npm run deploy
 ```
 
 > **No corran `npx convex dev` a secas sin la key.** Les crea un backend local
@@ -116,9 +116,14 @@ Convex no se despliega con Vercel:
 CONVEX_DEPLOY_KEY="dev:colorful-mole-701|..." npx convex deploy
 ```
 
-> **Un solo deployment para todos.** Si dos ramas despliegan al mismo Convex se
-> pisan el schema entre ellas: la última en salir borra las tablas e índices que
-> la otra agregó. Que despliegue una sola persona, o desde una sola rama.
+> **Un solo deployment para todos, y solo desde `main`.** Convex sincroniza el
+> schema con el código que le mandás: desplegar desde otra rama no agrega
+> funciones, **borra** las que esa rama no tiene. Ya pasó una vez y se llevó
+> puesto el corrector, la sala del jurado y media docena de queries.
+>
+> Por eso `npm run deploy` corre una guarda que frena si no estás en `main`.
+> Si de verdad necesitás desplegar tu rama, avisá al equipo y usá
+> `FROGL_DEPLOY_ANYWAY=1 npm run deploy`.
 
 ## Correr en local
 
