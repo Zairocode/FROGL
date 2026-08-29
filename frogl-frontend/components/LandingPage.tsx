@@ -64,15 +64,14 @@ export function LandingPage() {
           Humanos con cuenta. Sin bots.
         </h2>
         <p className="mt-4 text-fg-muted">
-          Nombre, mail y contraseña. El expositor ve quién te escribió, no un
-          agente prearmado.
+          Entrá con un código de referido y tu nombre. Sin mail ni contraseña.
         </p>
         <button
           type="button"
           className="cta-primary mt-6"
           onClick={() => router.push("/cuenta")}
         >
-          Crear cuenta de jurado
+          Soy jurado →
         </button>
       </section>
 

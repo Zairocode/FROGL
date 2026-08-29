@@ -1,8 +1,8 @@
 import { JuryAuthForm } from "@/components/JuryAuthForm";
 
 export const metadata = {
-  title: "Cuenta de jurado — FROGL",
-  description: "Creá o entrá con tu cuenta de jurado.",
+  title: "Entrar como jurado — FROGL",
+  description: "Código de referido y nombre para entrar a la sala.",
 };
 
 export default function CuentaPage() {

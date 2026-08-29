@@ -9,8 +9,7 @@ import {
   useState,
 } from "react";
 import {
-  authenticate,
-  createAccount,
+  createAccountFromReferral,
   dropPresence,
   livePresence,
   PRESENCE_CHANNEL,
@@ -27,12 +26,10 @@ type AccountContextValue = {
   account: PublicJuror | null;
   online: PublicJuror[];
   hydrated: boolean;
-  register: (
+  joinWithReferral: (
+    referralCode: string,
     name: string,
-    email: string,
-    password: string,
   ) => Promise<string | null>;
-  login: (email: string, password: string) => Promise<string | null>;
   logout: () => void;
 };
 
@@ -74,9 +71,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const register = useCallback(
-    async (name: string, email: string, password: string) => {
-      const result = await createAccount(name, email, password);
+  const joinWithReferral = useCallback(
+    async (referralCode: string, name: string) => {
+      const result = createAccountFromReferral(name, referralCode);
       if (!result.ok) return result.error;
       writeSessionId(result.account.id);
       persistRole("jurado");
@@ -86,15 +83,6 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const login = useCallback(async (email: string, password: string) => {
-    const result = await authenticate(email, password);
-    if (!result.ok) return result.error;
-    writeSessionId(result.account.id);
-    persistRole("jurado");
-    setAccount(toPublic(result.account));
-    return null;
-  }, []);
-
   const logout = useCallback(() => {
     if (account) dropPresence(account.id);
     writeSessionId(null);
@@ -103,8 +91,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   }, [account]);
 
   const value = useMemo(
-    () => ({ account, online, hydrated, register, login, logout }),
-    [account, online, hydrated, register, login, logout],
+    () => ({ account, online, hydrated, joinWithReferral, logout }),
+    [account, online, hydrated, joinWithReferral, logout],
   );
 
   return (
