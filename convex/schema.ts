@@ -31,9 +31,20 @@ export default defineSchema({
     slug: v.string(),
     name: v.string(),
     emoji: v.string(),
+    color: v.optional(v.string()),
+    // Como suena. Estaba hardcodeado "rioplatense" en el prompt y salian
+    // todos hablando igual. Se edita por jurado desde el dashboard.
+    dialect: v.optional(v.string()),
     persona: v.string(),
     rubric: v.array(
-      v.object({ key: v.string(), label: v.string(), weight: v.number() }),
+      v.object({
+        key: v.string(),
+        label: v.string(),
+        weight: v.number(),
+        // Que significa un 2 y que significa un 9 para ESTE criterio.
+        // Sin anclas el modelo puntua por impresion y varia entre corridas.
+        anchor: v.optional(v.string()),
+      }),
     ),
     retrievalTag: v.string(),   // que corpus del RAG ve -> chunks.tag
     contextPolicy,
@@ -52,9 +63,8 @@ export default defineSchema({
     userId: v.optional(v.string()),
     joinedAtMs: v.number(),
     active: v.boolean(),
-    // Ultima vez que este asiento reacciono (solo agentes). El scheduler la
-    // usa como throttle: no dispara jury.react si reactEveryMs no paso.
-    lastReactedAtMs: v.optional(v.number()),
+    lastSeen: v.optional(v.number()), // heartbeat del humano; los agentes no lo usan
+    color: v.optional(v.string()),
   }).index("by_session", ["sessionId"]),
 
   transcript: defineTable({
@@ -90,27 +100,26 @@ export default defineSchema({
     verdict: v.string(),
   }).index("by_session", ["sessionId"]),
 
+  // Muestras acusticas que manda el browser cada ~3s con Web Audio.
+  // El transcript da QUE dijo; esto da COMO lo dijo.
+  delivery: defineTable({
+    sessionId: v.id("sessions"),
+    tMs: v.number(),
+    rms: v.number(),          // volumen medio de la ventana, 0..1
+    silentRatio: v.number(),  // proporcion de la ventana en silencio, 0..1
+  }).index("by_session_time", ["sessionId", "tMs"]),
+
   // Chat de los humanos mirando en vivo
   messages: defineTable({
     sessionId: v.id("sessions"),
+    accountId: v.string(),
     author: v.string(),
+    color: v.string(),
     text: v.string(),
+    cue: v.optional(v.string()), // chat | volume | posture | rating
   }).index("by_session", ["sessionId"]),
 
-  // Cola de TTS: cuando un jurado (agente) hace una pregunta, el backend la
-  // encola aca. El front (Chrome speechSynthesis, Linux Mint) la consume y
-  // la marca done. El backend NO genera audio: solo orquesta.
-  speakJobs: defineTable({
-    sessionId: v.id("sessions"),
-    seatId: v.id("seats"),
-    text: v.string(),
-    kind: v.union(v.literal("reaction"), v.literal("question")),
-    tMs: v.number(),
-    done: v.boolean(),
-  }).index("by_session_pending", ["sessionId", "done"]),
-
   // Corpus del RAG. Un chunk = un tag. Si sirve para dos jurados, se duplica.
-  // Embeddings: gemini-embedding-001 recortado a 1536 (ver models.embedText).
   chunks: defineTable({
     tag: v.string(),
     text: v.string(),
@@ -118,7 +127,7 @@ export default defineSchema({
     embedding: v.array(v.float64()),
   }).vectorIndex("by_embedding", {
     vectorField: "embedding",
-    dimensions: 1536,
+    dimensions: 3072, // gemini-embedding-001
     filterFields: ["tag"],
   }),
 });

@@ -1,4 +1,7 @@
-import { mutation, query } from "./_generated/server";
+import { action, mutation, query } from "./_generated/server";
+import { api } from "./_generated/api";
+import { transcribe } from "ai";
+import { transcription, TRANSCRIBE_MODEL } from "./model";
 import { v } from "convex/values";
 
 // El browser (Web Speech API) escupe aca cada frase. Todo lo demas se cuelga de esto.
@@ -51,4 +54,31 @@ export const live = query({
       .query("transcript")
       .withIndex("by_session_time", (q) => q.eq("sessionId", sessionId))
       .collect(),
+});
+
+// ============================================================
+//  STT DEL LADO DEL SERVIDOR
+//  La Web Speech API del browser manda el audio a servidores de Google
+//  y en la red del evento eso da "speech error: network" sin parar.
+//  Aca el browser solo graba: transcribe Convex, que si tiene salida.
+//  Efecto secundario bueno: sin SpeechRecognition en el browser se puede
+//  volver a medir volumen y pausas sobre el mismo microfono.
+// ============================================================
+
+export const ingestAudio = action({
+  args: { sessionId: v.id("sessions"), audio: v.string() },
+  handler: async (ctx, { sessionId, audio }): Promise<string | null> => {
+    const { text } = await transcribe({
+      model: await transcription(TRANSCRIBE_MODEL),
+      audio,
+    });
+    const limpio = text.trim();
+    if (!limpio) return null;
+    await ctx.runMutation(api.transcript.append, {
+      sessionId,
+      text: limpio,
+      final: true,
+    });
+    return limpio;
+  },
 });

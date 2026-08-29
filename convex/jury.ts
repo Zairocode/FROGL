@@ -4,10 +4,27 @@ import { v } from "convex/values";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { retrieve } from "./rag";
-import { chatModel } from "./models";
+import { chat } from "./model";
 import type { Doc } from "./_generated/dataModel";
+import { analyze } from "./delivery";
 
+import { CHAT_MODEL } from "./model";
+
+const MODEL = CHAT_MODEL;
+// Neutro salvo que el perfil diga otra cosa: cuatro jurados con el mismo
+// acento se notan como el mismo personaje repetido.
+const DIALECTO_POR_DEFECTO =
+  "espanol neutro de Latinoamerica, sin modismos de ningun pais en particular";
 const KINDS = ["hooked", "confused", "bored", "skeptical", "convinced"] as const;
+
+// Anotado a mano: sin esto TS entra en ciclo (action -> internal.jury.bundle -> api.d.ts).
+type Bundle = {
+  seat: Doc<"seats">;
+  session: Doc<"sessions">;
+  profile: Doc<"profiles">;
+  lines: Doc<"transcript">[];
+  samples: Doc<"delivery">[];
+} | null;
 
 // ============================================================
 //  EL TRUCO DEL PROYECTO
@@ -19,12 +36,21 @@ function sliceTranscript(
   seat: Doc<"seats">,
   profile: Doc<"profiles">,
   nowMs: number,
+  mode: "live" | "final" = "live",
 ) {
   switch (profile.contextPolicy) {
     case "lateJoin": // entro tarde: nunca vera el arranque
       return lines.filter((l) => l.tMs >= seat.joinedAtMs);
-    case "window": // atencion corta: solo los ultimos windowMs
-      return lines.filter((l) => l.tMs >= nowMs - (profile.windowMs ?? 20_000));
+    case "window": {
+      const w = profile.windowMs ?? 20_000;
+      // En vivo: ventana movil de los ultimos w ms.
+      // Al puntuar: los PRIMEROS w ms. Es lo unico que alcanzo a atender
+      // antes de irse, y es justo lo que su rubrica (gancho inicial) juzga.
+      // Con la ventana del final calificaba la apertura leyendo el cierre.
+      return mode === "final"
+        ? lines.filter((l) => l.tMs <= w)
+        : lines.filter((l) => l.tMs >= nowMs - w);
+    }
     default:
       return lines;
   }
@@ -40,7 +66,7 @@ function contextNote(profile: Doc<"profiles">, seat: Doc<"seats">) {
 
 export const bundle = internalQuery({
   args: { seatId: v.id("seats") },
-  handler: async (ctx, { seatId }) => {
+  handler: async (ctx, { seatId }): Promise<Bundle> => {
     const seat = await ctx.db.get(seatId);
     if (!seat || !seat.profileId) return null;
     const [session, profile] = await Promise.all([
@@ -52,7 +78,11 @@ export const bundle = internalQuery({
       .query("transcript")
       .withIndex("by_session_time", (q) => q.eq("sessionId", seat.sessionId))
       .collect();
-    return { seat, session, profile, lines };
+    const samples = await ctx.db
+      .query("delivery")
+      .withIndex("by_session_time", (q) => q.eq("sessionId", seat.sessionId))
+      .collect();
+    return { seat, session, profile, lines, samples };
   },
 });
 
@@ -75,16 +105,6 @@ export const saveReaction = internalMutation({
         text: question,
         answered: false,
       });
-      // La pregunta sale en voz alta: se encola para que el front (TTS)
-      // la lea con speechSynthesis. El backend solo orquesta, no genera audio.
-      await ctx.db.insert("speakJobs", {
-        sessionId: reaction.sessionId,
-        seatId: reaction.seatId,
-        text: question,
-        kind: "question",
-        tMs: reaction.tMs,
-        done: false,
-      });
     }
   },
 });
@@ -92,23 +112,24 @@ export const saveReaction = internalMutation({
 // Una reaccion en vivo. El front la ve aparecer sola por la suscripcion.
 export const react = action({
   args: { seatId: v.id("seats") },
-  handler: async (ctx, { seatId }) => {
+  handler: async (ctx, { seatId }): Promise<void> => {
     const b = await ctx.runQuery(internal.jury.bundle, { seatId });
-    if (!b) return null;
+    if (!b) return;
     const nowMs = b.session.startedAt ? Date.now() - b.session.startedAt : 0;
     const visible = sliceTranscript(b.lines, b.seat, b.profile, nowMs);
-    if (visible.length === 0) return null;
+    if (visible.length === 0) return;
 
     const heard = visible.map((l) => l.text).join(" ");
     const notes = await retrieve(ctx, b.profile.retrievalTag, heard.slice(-800));
 
     const { output } = await generateText({
-      model: chatModel,
+      model: await chat(MODEL),
       system: [
         b.profile.persona,
         contextNote(b.profile, b.seat),
         notes.length ? `Sabes esto del tema:\n- ${notes.join("\n- ")}` : "",
-        "Estas escuchando un pitch EN VIVO. Reacciona en una linea, en primera persona, en espanol rioplatense. Nada de resumir lo que escuchaste.",
+        "Estas escuchando un pitch EN VIVO. Reacciona en una linea, en primera persona. Nada de resumir lo que escuchaste.",
+        `Hablas en ${b.profile.dialect ?? DIALECTO_POR_DEFECTO}.`,
       ]
         .filter(Boolean)
         .join("\n\n"),
@@ -133,7 +154,6 @@ export const react = action({
       note: output.note,
       question: output.question ?? undefined,
     });
-    return output;
   },
 });
 
@@ -151,55 +171,87 @@ export const saveScore = internalMutation({
 });
 
 // Scorecard final. El total lo calculamos nosotros con los pesos, no el modelo.
+// Scorecard final. Dos decisiones deliberadas:
+//  1. El schema fuerza UNA propiedad por criterio de la rubrica, asi el modelo
+//     no puede inventar nombres de key. Antes devolvia keys libres, no matcheaban
+//     con los pesos y el total se iba a 0 CON VEREDICTOS ELOGIOSOS.
+//  2. El total lo calculamos nosotros con los pesos, nunca el modelo.
 export const score = action({
   args: { seatId: v.id("seats") },
-  handler: async (ctx, { seatId }) => {
+  handler: async (
+    ctx,
+    { seatId },
+  ): Promise<{ total: number; verdict: string } | null> => {
     const b = await ctx.runQuery(internal.jury.bundle, { seatId });
     if (!b) return null;
     const endMs =
       b.session.endedAt && b.session.startedAt
         ? b.session.endedAt - b.session.startedAt
         : Number.MAX_SAFE_INTEGER;
-    const visible = sliceTranscript(b.lines, b.seat, b.profile, endMs);
+    const visible = sliceTranscript(b.lines, b.seat, b.profile, endMs, "final");
     const heard = visible.map((l) => l.text).join(" ");
+    const delivery = analyze(visible, b.samples);
+
+    const criterio = z.object({
+      score: z.number().min(0).max(10),
+      why: z.string(),
+    });
+    const shape: Record<string, typeof criterio> = {};
+    for (const r of b.profile.rubric) shape[r.key] = criterio;
 
     const { output } = await generateText({
-      model: chatModel,
+      model: await chat(MODEL),
       system: [
         b.profile.persona,
         contextNote(b.profile, b.seat),
         "Calificas SOLO lo que escuchaste. Si te perdiste parte del pitch, eso juega en contra del pitch, no a favor.",
+        "Como lo dijo, medido del audio y del texto (no lo interpretes, es dato duro): " +
+          delivery.resumen,
       ].join("\n\n"),
-      prompt: `Pitch escuchado:\n\n"${heard}"\n\nCalifica de 0 a 10 cada criterio: ${b.profile.rubric
-        .map((r) => `${r.key} (${r.label})`)
-        .join(", ")}. Cerra con un veredicto de dos lineas.`,
+      // Puntuar es medicion, no creatividad: sin esto la misma corrida varia
+      // +-1.5 puntos y no se puede saber si un cambio de rubrica sirvio.
+      // Las reacciones en vivo SI quedan con temperatura default: ahi la
+      // variedad es deseable.
+      temperature: 0,
+      prompt: [
+        `Pitch escuchado:\n\n"${heard}"`,
+        "Califica de 0 a 10 cada criterio. Respeta la escala de cada uno:",
+        ...b.profile.rubric.map(
+          (r) =>
+            `- ${r.key} (${r.label})` +
+            (r.anchor ? `\n  Escala: ${r.anchor}` : ""),
+        ),
+        "Cerra con un veredicto de dos lineas.",
+      ].join("\n\n"),
       output: Output.object({
         schema: z.object({
-          breakdown: z.array(
-            z.object({
-              key: z.string(),
-              score: z.number().min(0).max(10),
-              why: z.string(),
-            }),
-          ),
+          criterios: z.object(shape),
           verdict: z.string(),
         }),
       }),
     });
 
-    const weights = new Map(b.profile.rubric.map((r) => [r.key, r.weight]));
-    const total = output.breakdown.reduce(
-      (sum, item) => sum + item.score * (weights.get(item.key) ?? 0),
+    const criterios = output.criterios as Record<
+      string,
+      { score: number; why: string }
+    >;
+    const breakdown = b.profile.rubric.map((r) => ({
+      key: r.key,
+      score: criterios[r.key].score,
+      why: criterios[r.key].why,
+    }));
+    const total = b.profile.rubric.reduce(
+      (sum, r) => sum + criterios[r.key].score * r.weight,
       0,
     );
 
     await ctx.runMutation(internal.jury.saveScore, {
       sessionId: b.seat.sessionId,
       seatId,
-      breakdown: output.breakdown,
+      breakdown,
       total: Math.round(total * 10) / 10,
       verdict: output.verdict,
     });
-    return { total, verdict: output.verdict };
+    return { total: Math.round(total * 10) / 10, verdict: output.verdict };
   },
 });

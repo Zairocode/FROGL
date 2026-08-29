@@ -20,9 +20,9 @@ guardadas en la tabla `profiles`, editables sin deploy:
 
 La tercera es la que hace el trabajo pesado:
 
-- `full` — escuchó todo. (la técnica, la de actitud)
-- `lateJoin` — entró tarde, solo ve desde `seat.joinedAtMs`. Mide si tu pitch se sostiene solo.
-- `window` — solo retiene los últimos `windowMs`. El de atención de TikTok literalmente no recuerda lo de hace medio minuto.
+- `full` — escuchó todo. (Elena la técnica, Rosa la de actitud)
+- `lateJoin` — entró tarde, solo ve desde `seat.joinedAtMs`. Marco entra a los 90s. Mide si tu pitch se sostiene solo.
+- `window` — solo retiene los últimos `windowMs`. Kevin ve 20 segundos: literalmente no recuerda lo de hace medio minuto.
 
 Todo eso vive en `convex/jury.ts::sliceTranscript`, que son diez líneas.
 
@@ -33,16 +33,52 @@ es rellenar asientos.
 
 ## Setup
 
-```bash
-npm install
-npx convex dev          # login + crea convex/_generated  <- SIN ESTO NADA COMPILA
+Backend compartido del equipo (ya desplegado, con los 4 jurados sembrados):
+
+```
+https://colorful-mole-701.convex.cloud
 ```
 
-En el dashboard de Convex → Settings → Environment Variables, cargá `GEMINI_API_KEY`.
-Después, desde el dashboard o el front, corré una vez `profiles:seed` y `seed:seedRag`.
+### Front — no necesitan `convex dev` para nada
+
+Creás `.env.local` con una línea:
+
+```
+NEXT_PUBLIC_CONVEX_URL=https://colorful-mole-701.convex.cloud
+```
 
 ```bash
+npm install
 npm run dev
+```
+
+Listo. Leen y escriben contra las funciones ya desplegadas y todos ven los mismos datos.
+
+### Back — los que tocan `convex/`
+
+Empujan al deployment compartido con el deploy key del equipo:
+
+```bash
+CONVEX_DEPLOY_KEY="dev:colorful-mole-701|..." npx convex deploy
+```
+
+> **No corran `npx convex dev` a secas sin la key.** Les crea un backend local
+> propio y aislado, y van a pasar horas preguntándose por qué no ven los datos
+> de los demás.
+
+### Pendiente de configurar
+
+En el dashboard de Convex → Settings → Environment Variables:
+
+```
+AI_GATEWAY_API_KEY=...
+```
+
+Sin eso fallan `jury.react`, `jury.score` y `rag.ingest` — las tres que llaman al
+modelo. Después, una vez por deployment:
+
+```bash
+npx convex run corpus:load
 ```
 
 ## Mapa
@@ -51,55 +87,95 @@ npm run dev
 |---|---|---|
 | `convex/schema.ts` | el contrato, todos codean contra esto | todos |
 | `convex/profiles.ts` | los 4 jurados: personas, rúbricas, políticas | orquestación |
-| `convex/jury.ts` | el agente: reacciona y puntúa | back 2 |
+| `convex/corpus.ts` | motor de errores comunes = el RAG real | orquestación |
+| `convex/tuning.ts` | banco de prueba de rúbricas | orquestación |
+| `convex/jury.ts` | el agente: `react()` y `score()` | back 2 |
 | `convex/rag.ts` | ingest + vector search por tag | back 2 |
+| `convex/loop.ts` | latido: dispara `react` cada `reactEveryMs` | back 2 |
 | `convex/sessions.ts` `seats.ts` `transcript.ts` | espina dorsal de la sala | back 1 |
-| `convex/live.ts` | queries que consume el front + mutaciones de humanos | back 1 |
-| `convex/crons.ts` `scheduler.ts` | el loop: dispara `jury.react` cada `reactEveryMs` | back 1 |
-| `convex/speak.ts` | cola de TTS: el jurado "habla" vía el front | back 1 |
-| `convex/seed.ts` | siembra el corpus del RAG por tag | back 2 |
+| `convex/live.ts` | queries que consume el front | back 1 |
 | `app/` | sala del pitch + panel del jurado | front 1 y 2 |
 
-## Backend: cómo corre el jurado en vivo
+## Backend NestJS (`backend/`)
 
-Todo arranca en `convex/crons.ts`: un cron llama a `scheduler.tick` cada 5 segundos.
-El scheduler barre las sesiones `live` y, por cada asiento de agente, decide si ya
-pasó su `profile.reactEveryMs`. Si hay transcript nuevo, agenda `jury.react`. Cuando
-la sesión termina, `sessions.end` agenda `jury.score` para cada asiento.
+Servicio auxiliar (esqueleto NestJS v11) para cuando haga falta una API propia
+fuera de Convex. Hoy expone solo el healthcheck:
 
-## Transcripción (STT/TTS)
+```bash
+cd backend
+npm install
+npm run start:dev   # GET http://localhost:3000/health → { "status": "ok" }
+```
 
-### STT — la voz del presentador (tu área)
+Producción apunta a Railway + Docker (`backend/Dockerfile`, `backend/railway.toml`).
+La arquitectura principal de FROGL es Convex; este servicio es independiente y
+opcional.
 
-La **Web Speech API** del browser es nativa, gratis y sin backend. El cliente llama a
-`transcript.append` con cada frase. El backend ya trata los parciales:
+## Afinar las rúbricas
 
-- `text` vacío o de < 2 chars se descarta (ruido del mic).
-- Los parciales (`final: false`) se **coalescen**: si ya existe un parcial reciente
-  de la sesión, se actualiza en vez de insertar duplicados. El transcript en vivo
-  no se llena de basura mientras el STT corrige la frase.
+```bash
+npx convex run tuning:dryRun '{"pitch":"caradura"}'
+```
 
-Contrato del sink: `transcript.append({ sessionId, text, final })`. El `tMs` lo
-calcula el backend desde `session.startedAt`.
+Tres pitches de prueba: `fuerte`, `flojo`, `caradura`. El `caradura` tiene contenido
+pésimo y entrega impecable — existe para verificar que **Rosa diverja de Elena**.
+Si las dos le ponen la misma nota, los perfiles no discriminan y el producto no
+tiene sentido. Ese es el test que importa, no la nota en sí.
 
-### TTS — la voz del jurado (tu área)
+## Captura del pitch (para el front)
 
-El backend **no genera audio**: cuando un jurado hace una pregunta (agente o humano),
-se encola un job en `speakJobs` y el front lo reproduce. El contrato:
+Del **mismo** stream de micrófono salen dos cosas en paralelo, sin backend,
+sin créditos y sin dependencias nuevas:
 
-- `speak.pending({ sessionId })` → jobs pendientes, más viejos primero (suscripción).
-- El front (Chrome `speechSynthesis`, Linux Mint) reproduce el texto y llama
-  `speak.markDone({ speakJobId })`.
-- El agente encola su pregunta en `jury.ts` (vía `saveReaction`); los humanos la
-  encolan desde `live.askQuestion`.
+| Fuente | Da | Va a |
+|---|---|---|
+| Web Speech API | **qué** dijo | `transcript.append` |
+| Web Audio `AnalyserNode` | **cómo** lo dijo | `delivery.sample` |
 
-Vapi queda reservado para el momento en que la pregunta en voz alta necesita
-calidad de producción (el que impresiona).
+Todo está en `lib/usePitchCapture.ts`. El front solo lo llama:
+
+```tsx
+"use client";
+import { usePitchCapture } from "@/lib/usePitchCapture";
+
+const cap = usePitchCapture(sessionId);
+
+<button onClick={cap.recording ? cap.stop : cap.start}>
+  {cap.recording ? "Cortar" : "Empezar a pitchear"}
+</button>
+
+{cap.error && <p>{cap.error}</p>}
+<p>{cap.interim}</p>                        {/* parcial, no llega a Convex */}
+<div style={{ width: cap.level * 400 }} />  {/* VU meter gratis */}
+```
+
+**Llamá a `sessions.start` antes de `cap.start()`** — si no, `transcript.append` tira
+porque no hay `startedAt` contra el cual calcular el tiempo.
+
+Detalles que ya están resueltos adentro:
+
+- Chrome corta el reconocimiento solo tras unos segundos de silencio. El hook lo
+  relanza en `onend`: sin eso el transcript se muere a mitad del pitch.
+- Solo los resultados **finales** van a Convex. Los interinos cambian en cada
+  palabra y llenarían la tabla de basura; se exponen como `interim` para pintarlos.
+- Suelta el micrófono al desmontar.
+- `silenceThreshold` (default 0.015) **hay que calibrarlo en la sala**: mirá
+  `cap.level` con el presentador callado y poné un poco más que eso.
+
+Solo Chrome y Edge. Firefox y Safari no tienen Web Speech API.
+
+## Transcripción
+
+Arrancamos con la **Web Speech API** del browser: nativa, gratis, sin backend.
+El cliente llama a `transcript.append` con cada frase. Vapi queda reservado para el
+momento en que un jurado hace la pregunta **en voz alta**, que es el que impresiona.
 
 ## Pendiente
 
-- [ ] Sala de pitch (mic + timer + transcript en vivo)
+- [x] Loop que dispara `jury.react` cada `profile.reactEveryMs`
+- [x] Scorecard automático al cerrar la sesión
+- [x] Captura de audio: transcript + señales de entrega (`lib/usePitchCapture.ts`)
+- [ ] Sala de pitch (pantalla, usa el hook de arriba)
 - [ ] Panel del jurado (reacciones, preguntas, chat de humanos)
-- [ ] Scorecard final
-- [x] Loop que dispara `jury.react` cada `profile.reactEveryMs` (cron + scheduler)
-- [x] Cargar corpus del RAG por tag (`seed.seedRag`)
+- [ ] Scorecard final en pantalla
+- [ ] Cargar el corpus del RAG (`corpus:load`) — necesita la key del modelo

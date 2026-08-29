@@ -14,6 +14,8 @@ export const JURY = [
     slug: "tecnico",
     name: "Dra. Elena Vargas",
     emoji: "🔬",
+    color: "#38bdf8",
+    dialect: "espanol neutro y profesional, preciso, sin modismos",
     persona:
       "Sos CTO de un fondo deep-tech. Te importa COMO funciona, no que promete. " +
       "Detectas hand-waving al instante: si alguien dice 'usamos IA' sin decir que modelo, " +
@@ -34,6 +36,9 @@ export const JURY = [
     slug: "tiktok",
     name: "Kevin",
     emoji: "📱",
+    color: "#fb7185",
+    dialect:
+      "espanol de internet, informal, en minuscula, con la energia de un comentario de TikTok",
     persona:
       "Tenes la atencion de un scroll infinito. Si en 15 segundos no entendes que hace el " +
       "producto, te aburris y lo decis sin culpa. La arquitectura te da igual: te importa si se " +
@@ -53,15 +58,17 @@ export const JURY = [
     slug: "recien-llegado",
     name: "Marco Ibanez",
     emoji: "🚪",
+    color: "#fbbf24",
     persona:
       "Acabas de entrar a la sala tarde. No escuchaste el principio y no lo vas a disimular. " +
       "Juzgas si el pitch se sostiene solo desde donde lo agarraste: si despues de 30 segundos " +
       "escuchando no sabes que venden ni a quien, es culpa del pitch, no tuya. Preguntas lo basico " +
       "sin vergüenza: 'perdon, esto para quien es?', 'que hacen exactamente?'.",
     rubric: [
-      { key: "autocontenido", label: "Se sostiene solo", weight: 0.45 },
-      { key: "claridad", label: "Claridad", weight: 0.35 },
-      { key: "repite_core", label: "Repite lo esencial", weight: 0.2 },
+      { key: "autocontenido", label: "Se sostiene solo", weight: 0.35 },
+      { key: "sustancia", label: "Hay producto o solo promesa", weight: 0.25 },
+      { key: "claridad", label: "Claridad", weight: 0.25 },
+      { key: "repite_core", label: "Repite lo esencial", weight: 0.15 },
     ],
     retrievalTag: "generalista",
     contextPolicy: "lateJoin" as const,
@@ -72,16 +79,51 @@ export const JURY = [
     slug: "actitud",
     name: "Rosa Puentes",
     emoji: "🎭",
+    color: "#c4b5fd",
     persona:
       "No evaluas la idea, evaluas a la persona. Mira la seguridad, la energia, si responde o " +
       "esquiva, si se pone a la defensiva cuando la aprietan, si hay conviccion real o guion " +
       "memorizado. Un producto mediocre con alguien que se la banca te gana a un producto bueno " +
       "con alguien que titubea. Sos calida pero no regalas nada.",
     rubric: [
-      { key: "conviccion", label: "Conviccion", weight: 0.35 },
-      { key: "presion", label: "Manejo de presion", weight: 0.3 },
-      { key: "energia", label: "Energia", weight: 0.2 },
-      { key: "autenticidad", label: "Autenticidad", weight: 0.15 },
+      {
+        key: "conviccion",
+        label: "Conviccion",
+        weight: 0.35,
+        anchor:
+          "0-2: habla todo en condicional ('podriamos', 'seria', 'la idea es'). " +
+          "5: afirma pero no se compromete a ninguna cifra ni fecha. " +
+          "8-10: afirma en presente, se compromete a numeros y plazos concretos, y sostiene lo dicho cuando lo aprietan.",
+      },
+      {
+        key: "presion",
+        label: "Manejo de presion",
+        weight: 0.3,
+        anchor:
+          "0-2: se pone a la defensiva, o responde otra cosa cuando no sabe. " +
+          "5: reconoce el limite pero se queda trabado ahi. " +
+          "8-10: dice 'no lo se' sin titubear y sigue con lo que si sabe, sin perder el hilo.",
+      },
+      {
+        key: "energia",
+        label: "Energia",
+        weight: 0.2,
+        anchor:
+          "Usa los datos medidos de volumen, pausas y muletillas, NO tu impresion del texto. " +
+          "0-2: monotono, volumen bajo, o se traba tanto que cuesta seguirlo. " +
+          "5: constante pero plano. " +
+          "8-10: modula, cambia el ritmo a proposito, sostiene la atencion. " +
+          "Si no hay datos de audio, no lo penalices: puntua 5 y decilo en el why.",
+      },
+      {
+        key: "autenticidad",
+        label: "Autenticidad",
+        weight: 0.15,
+        anchor:
+          "0-2: guion memorizado, la energia se cae apenas sale del libreto. " +
+          "5: suena preparado pero creible. " +
+          "8-10: habla como persona, admite lo que no tiene, no vende humo.",
+      },
     ],
     retrievalTag: "actitud",
     contextPolicy: "full" as const,
