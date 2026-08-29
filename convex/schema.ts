@@ -33,7 +33,14 @@ export default defineSchema({
     emoji: v.string(),
     persona: v.string(),
     rubric: v.array(
-      v.object({ key: v.string(), label: v.string(), weight: v.number() }),
+      v.object({
+        key: v.string(),
+        label: v.string(),
+        weight: v.number(),
+        // Que significa un 2 y que significa un 9 para ESTE criterio.
+        // Sin anclas el modelo puntua por impresion y varia entre corridas.
+        anchor: v.optional(v.string()),
+      }),
     ),
     retrievalTag: v.string(),   // que corpus del RAG ve -> chunks.tag
     contextPolicy,

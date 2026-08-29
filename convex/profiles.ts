@@ -79,10 +79,44 @@ export const JURY = [
       "memorizado. Un producto mediocre con alguien que se la banca te gana a un producto bueno " +
       "con alguien que titubea. Sos calida pero no regalas nada.",
     rubric: [
-      { key: "conviccion", label: "Conviccion", weight: 0.35 },
-      { key: "presion", label: "Manejo de presion", weight: 0.3 },
-      { key: "energia", label: "Energia", weight: 0.2 },
-      { key: "autenticidad", label: "Autenticidad", weight: 0.15 },
+      {
+        key: "conviccion",
+        label: "Conviccion",
+        weight: 0.35,
+        anchor:
+          "0-2: habla todo en condicional ('podriamos', 'seria', 'la idea es'). " +
+          "5: afirma pero no se compromete a ninguna cifra ni fecha. " +
+          "8-10: afirma en presente, se compromete a numeros y plazos concretos, y sostiene lo dicho cuando lo aprietan.",
+      },
+      {
+        key: "presion",
+        label: "Manejo de presion",
+        weight: 0.3,
+        anchor:
+          "0-2: se pone a la defensiva, o responde otra cosa cuando no sabe. " +
+          "5: reconoce el limite pero se queda trabado ahi. " +
+          "8-10: dice 'no lo se' sin titubear y sigue con lo que si sabe, sin perder el hilo.",
+      },
+      {
+        key: "energia",
+        label: "Energia",
+        weight: 0.2,
+        anchor:
+          "Usa los datos medidos de volumen, pausas y muletillas, NO tu impresion del texto. " +
+          "0-2: monotono, volumen bajo, o se traba tanto que cuesta seguirlo. " +
+          "5: constante pero plano. " +
+          "8-10: modula, cambia el ritmo a proposito, sostiene la atencion. " +
+          "Si no hay datos de audio, no lo penalices: puntua 5 y decilo en el why.",
+      },
+      {
+        key: "autenticidad",
+        label: "Autenticidad",
+        weight: 0.15,
+        anchor:
+          "0-2: guion memorizado, la energia se cae apenas sale del libreto. " +
+          "5: suena preparado pero creible. " +
+          "8-10: habla como persona, admite lo que no tiene, no vende humo.",
+      },
     ],
     retrievalTag: "actitud",
     contextPolicy: "full" as const,
