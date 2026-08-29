@@ -6,6 +6,7 @@ import { z } from "zod";
 import { retrieve } from "./rag";
 import { chat } from "./model";
 import type { Doc } from "./_generated/dataModel";
+import { analyze } from "./delivery";
 
 import { CHAT_MODEL } from "./model";
 
@@ -18,6 +19,7 @@ type Bundle = {
   session: Doc<"sessions">;
   profile: Doc<"profiles">;
   lines: Doc<"transcript">[];
+  samples: Doc<"delivery">[];
 } | null;
 
 // ============================================================
@@ -30,12 +32,21 @@ function sliceTranscript(
   seat: Doc<"seats">,
   profile: Doc<"profiles">,
   nowMs: number,
+  mode: "live" | "final" = "live",
 ) {
   switch (profile.contextPolicy) {
     case "lateJoin": // entro tarde: nunca vera el arranque
       return lines.filter((l) => l.tMs >= seat.joinedAtMs);
-    case "window": // atencion corta: solo los ultimos windowMs
-      return lines.filter((l) => l.tMs >= nowMs - (profile.windowMs ?? 20_000));
+    case "window": {
+      const w = profile.windowMs ?? 20_000;
+      // En vivo: ventana movil de los ultimos w ms.
+      // Al puntuar: los PRIMEROS w ms. Es lo unico que alcanzo a atender
+      // antes de irse, y es justo lo que su rubrica (gancho inicial) juzga.
+      // Con la ventana del final calificaba la apertura leyendo el cierre.
+      return mode === "final"
+        ? lines.filter((l) => l.tMs <= w)
+        : lines.filter((l) => l.tMs >= nowMs - w);
+    }
     default:
       return lines;
   }
@@ -63,7 +74,11 @@ export const bundle = internalQuery({
       .query("transcript")
       .withIndex("by_session_time", (q) => q.eq("sessionId", seat.sessionId))
       .collect();
-    return { seat, session, profile, lines };
+    const samples = await ctx.db
+      .query("delivery")
+      .withIndex("by_session_time", (q) => q.eq("sessionId", seat.sessionId))
+      .collect();
+    return { seat, session, profile, lines, samples };
   },
 });
 
@@ -168,8 +183,9 @@ export const score = action({
       b.session.endedAt && b.session.startedAt
         ? b.session.endedAt - b.session.startedAt
         : Number.MAX_SAFE_INTEGER;
-    const visible = sliceTranscript(b.lines, b.seat, b.profile, endMs);
+    const visible = sliceTranscript(b.lines, b.seat, b.profile, endMs, "final");
     const heard = visible.map((l) => l.text).join(" ");
+    const delivery = analyze(visible, b.samples);
 
     const criterio = z.object({
       score: z.number().min(0).max(10),
@@ -184,7 +200,14 @@ export const score = action({
         b.profile.persona,
         contextNote(b.profile, b.seat),
         "Calificas SOLO lo que escuchaste. Si te perdiste parte del pitch, eso juega en contra del pitch, no a favor.",
+        "Como lo dijo, medido del audio y del texto (no lo interpretes, es dato duro): " +
+          delivery.resumen,
       ].join("\n\n"),
+      // Puntuar es medicion, no creatividad: sin esto la misma corrida varia
+      // +-1.5 puntos y no se puede saber si un cambio de rubrica sirvio.
+      // Las reacciones en vivo SI quedan con temperatura default: ahi la
+      // variedad es deseable.
+      temperature: 0,
       prompt: `Pitch escuchado:\n\n"${heard}"\n\nCalifica de 0 a 10 cada criterio: ${b.profile.rubric
         .map((r) => `${r.key} (${r.label})`)
         .join(", ")}. Cerra con un veredicto de dos lineas.`,

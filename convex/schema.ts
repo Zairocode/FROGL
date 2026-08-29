@@ -87,6 +87,15 @@ export default defineSchema({
     verdict: v.string(),
   }).index("by_session", ["sessionId"]),
 
+  // Muestras acusticas que manda el browser cada ~3s con Web Audio.
+  // El transcript da QUE dijo; esto da COMO lo dijo.
+  delivery: defineTable({
+    sessionId: v.id("sessions"),
+    tMs: v.number(),
+    rms: v.number(),          // volumen medio de la ventana, 0..1
+    silentRatio: v.number(),  // proporcion de la ventana en silencio, 0..1
+  }).index("by_session_time", ["sessionId", "tMs"]),
+
   // Chat de los humanos mirando en vivo
   messages: defineTable({
     sessionId: v.id("sessions"),

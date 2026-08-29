@@ -9,6 +9,8 @@
  */
 
 import type * as corpus from "../corpus.js";
+import type * as delivery from "../delivery.js";
+import type * as deliveryMath from "../deliveryMath.js";
 import type * as jury from "../jury.js";
 import type * as live from "../live.js";
 import type * as loop from "../loop.js";
@@ -28,6 +30,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   corpus: typeof corpus;
+  delivery: typeof delivery;
+  deliveryMath: typeof deliveryMath;
   jury: typeof jury;
   live: typeof live;
   loop: typeof loop;
