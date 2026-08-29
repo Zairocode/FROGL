@@ -19,11 +19,11 @@ import { mutation, query } from "./_generated/server";
 //   2. Copiá su ID (la URL de la voz: https://elevenlabs.io/voice-lab/<id>).
 //   3. Pegalo aca en voiceId, o en runtime en el dashboard de Convex
 //      (tabla profiles -> voiceId) sin redeploy.
-//  Personalidad sugerida por jurado para elegir la voz:
-//    - tecnico  (Dra. Elena): femenina, profesional, autoridad serena.
-//    - tiktok   (Kevin):      masculina joven, enérgica, rápida.
-//    - recien-llegado (Marco): masculina cálida y directa, sin rodeos.
-//    - actitud  (Rosa):       femenina cálida y presente, que transmite segura.
+//  Voces asignadas:
+//    - tecnico  (Dra. Elena): 96qYSF9GNEZIEaY0Cfut
+//    - tiktok   (Kevin):      GuaikOSV4LxuogU34zA2
+//    - recien-llegado (Marco): 3zMEOvtqD6lFQGnY9nUW
+//    - actitud  (Rosa):       21m00Tcm4TlvDq8ikWAM (genérica, Rachel)
 
 export const JURY = [
   {
@@ -48,7 +48,7 @@ export const JURY = [
     verifiesFacts: true, // Dra. Elena verifica afirmaciones dudosas en internet (Tavily)
     contextPolicy: "full" as const,
     reactEveryMs: 25000,
-    voiceId: "",
+    voiceId: "96qYSF9GNEZIEaY0Cfut",
   },
   {
     slug: "tiktok",
@@ -71,7 +71,7 @@ export const JURY = [
     contextPolicy: "window" as const,
     windowMs: 20000, // literalmente no recuerda lo de hace medio minuto
     reactEveryMs: 12000,
-    voiceId: "",
+    voiceId: "GuaikOSV4LxuogU34zA2",
   },
   {
     slug: "recien-llegado",
@@ -93,7 +93,7 @@ export const JURY = [
     contextPolicy: "lateJoin" as const,
     defaultJoinAtMs: 90_000, // entra al minuto y medio
     reactEveryMs: 20000,
-    voiceId: "",
+    voiceId: "3zMEOvtqD6lFQGnY9nUW",
   },
   {
     slug: "actitud",
@@ -148,7 +148,8 @@ export const JURY = [
     retrievalTag: "actitud",
     contextPolicy: "full" as const,
     reactEveryMs: 30000,
-    voiceId: "",
+    // Voz genérica de librería (Rachel). No hay voz propia para Rosa.
+    voiceId: "21m00Tcm4TlvDq8ikWAM",
   },
 ];
 
