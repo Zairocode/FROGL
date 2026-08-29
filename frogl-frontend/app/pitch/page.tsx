@@ -1,4 +1,4 @@
-import { PitchRoom } from "@/components/PitchRoom";
+import { PitchRoom } from "@/components/pitch/PitchRoom";
 import { RoleGate } from "@/components/RoleGate";
 
 export const metadata = {

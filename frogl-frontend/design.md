@@ -112,9 +112,13 @@ Opcional detrás del héroe: anillo tipográfico rotatorio (ciudades / “live�
 
 ### Sala de pitch
 
-- Zona central: timer + estado mic + transcript scrolling.
-- Lateral o inferior: strip de 4 asientos (avatar 2.5D + última reacción).
+- Viewport fijo (`h-dvh`): el scroll no estira la página; solo el panel de transcript / feed hace scroll interno.
+- Arriba-centro: timer + mic en bolita + spectrograma; debajo cámara del presentador (mediana).
+- Derecha: transcript estilo lyrics (línea activa grande; pasadas atenuadas) + feed en vivo debajo.
+- Abajo: strip de 4 asientos (avatar 2.5D + expresión, o humano con nombre/cámara).
+- Segmentos: `speech` | `filler` (solo lexicon sobre texto reconocido — no VAD) | `silence`; `words[{ text, startMs, endMs }]` para export.
 - Jerarquía: transcript legible &gt; reacciones ornamentales.
+- Ruta maqueta: `/pitch`.
 
 ### Panel del jurado
 
@@ -130,20 +134,7 @@ Intuitivo = affordances claras (dónde hablar, quién escucha, qué pasó). No =
 
 ## 6. Personajes 2.5D
 
-Estética: **Peanuts Movie / Duolingo moderno** — figuras básicas con volumen soft (mate, especulares suaves), no anatomía realista.
-
-### Construcción (obligatoria)
-
-| Pieza | Forma |
-|---|---|
-| Cabeza / torso | Cápsula o “pill” redondeada |
-| Brazos | Cilindros soft, ligeramente desacoplados del torso |
-| Piernas / pies | Cápsulas pequeñas, a menudo **detached** (flotan) |
-| Ojos | Círculos flat blancos + pupilas; párpados gruesos negros |
-| Boca / bigote / pelo | Siluetas sólidas, sin detalle de pelo fino |
-| Material | Vinilo mate; gradientes suaves; sombra de contacto |
-
-Turnaround mental: frontal → ¾ → perfil usando las mismas primitivas. El “render” 2.5D es la misma geometría con lighting, no otro diseño.
+Estética: SVG original `public/avatars/avatar-boy-male-5.svg` (SVG Repo). **Mismas paths**; solo cambian fills (camisa / bolsillo). Fondo del SVG omitido (transparente). Nombre debajo del asiento.
 
 ### Producción permitida
 

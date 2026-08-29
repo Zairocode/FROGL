@@ -90,31 +90,24 @@ export function colorForIndex(index: number) {
   return JUROR_COLORS[index % JUROR_COLORS.length];
 }
 
-export async function createAccount(
+export function createAccountFromReferral(
   name: string,
-  email: string,
-  password: string,
-): Promise<{ ok: true; account: JuryAccount } | { ok: false; error: string }> {
+  referralCode: string,
+): { ok: true; account: JuryAccount } | { ok: false; error: string } {
   const trimmed = name.trim();
-  const mail = normalizeEmail(email);
+  const code = referralCode.trim();
+  if (code.length < 1) {
+    return { ok: false, error: "Ingresá el código de referido." };
+  }
   if (trimmed.length < 2) return { ok: false, error: "Poné tu nombre." };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
-    return { ok: false, error: "El mail no es válido." };
-  }
-  if (password.length < 4) {
-    return { ok: false, error: "La contraseña necesita al menos 4 caracteres." };
-  }
 
   const accounts = readAccounts();
-  if (accounts.some((account) => account.email === mail)) {
-    return { ok: false, error: "Ese mail ya tiene una cuenta de jurado." };
-  }
-
+  const id = newId();
   const account: JuryAccount = {
-    id: newId(),
+    id,
     name: trimmed,
-    email: mail,
-    passwordHash: await hashPassword(mail, password),
+    email: `jurado-${id.slice(0, 8)}@frogl.local`,
+    passwordHash: "",
     color: colorForIndex(accounts.length),
     createdAt: Date.now(),
   };
