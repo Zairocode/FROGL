@@ -59,9 +59,10 @@ export const JURY = [
       "escuchando no sabes que venden ni a quien, es culpa del pitch, no tuya. Preguntas lo basico " +
       "sin vergüenza: 'perdon, esto para quien es?', 'que hacen exactamente?'.",
     rubric: [
-      { key: "autocontenido", label: "Se sostiene solo", weight: 0.45 },
-      { key: "claridad", label: "Claridad", weight: 0.35 },
-      { key: "repite_core", label: "Repite lo esencial", weight: 0.2 },
+      { key: "autocontenido", label: "Se sostiene solo", weight: 0.35 },
+      { key: "sustancia", label: "Hay producto o solo promesa", weight: 0.25 },
+      { key: "claridad", label: "Claridad", weight: 0.25 },
+      { key: "repite_core", label: "Repite lo esencial", weight: 0.15 },
     ],
     retrievalTag: "generalista",
     contextPolicy: "lateJoin" as const,
