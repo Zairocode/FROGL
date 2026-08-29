@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
 :root {
-  /* Canvas — fixed charcoal (see design.md) */
   --background: #212529;
   --foreground: #f8f9fa;
 
@@ -21,6 +20,15 @@
   --jury-tiktok: #ff8fab;
   --jury-late: #fbbf24;
   --jury-actitud: #2dd4a8;
+
+  --text-hero: clamp(2.5rem, 6vw, 4.5rem);
+  --text-title: clamp(1.75rem, 3vw, 2.25rem);
+  --text-body: 1.0625rem;
+  --text-label: 0.75rem;
+
+  --font-display: var(--font-fraunces);
+  --font-ui: var(--font-dm-sans);
+  --font-timer: var(--font-jetbrains);
 }
 
 @theme inline {
@@ -44,12 +52,159 @@
   --color-jury-late: var(--jury-late);
   --color-jury-actitud: var(--jury-actitud);
 
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-dm-sans);
+  --font-mono: var(--font-jetbrains);
+  --font-display: var(--font-fraunces);
 }
 
 body {
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-dm-sans), "DM Sans", sans-serif;
+  font-size: var(--text-body);
+}
+
+.cta-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 3rem;
+  padding: 0 1.35rem;
+  border-radius: 999px;
+  background: var(--accent-pink);
+  color: #212529;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  transition: transform 160ms ease-out, filter 160ms ease-out;
+}
+
+.cta-primary:hover {
+  transform: scale(1.03);
+  filter: brightness(1.05);
+}
+
+.cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 3rem;
+  padding: 0 1.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg);
+  font-weight: 600;
+  transition: transform 160ms ease-out, background 160ms ease-out;
+}
+
+.cta-secondary:hover {
+  transform: scale(1.03);
+  background: var(--bg-elevated);
+}
+
+.label-caps {
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.speech-bubble {
+  --bubble-accent: var(--accent-cyan);
+  position: relative;
+  width: 100%;
+  max-width: 16rem;
+  padding: 0.7rem 0.9rem 0.85rem;
+  border-radius: 1.15rem;
+  background: var(--bg-elevated);
+  border: 1px solid color-mix(in srgb, var(--bubble-accent) 55%, var(--border));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  text-align: left;
+}
+
+.speech-bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  translate: -50% 0;
+  rotate: 45deg;
+  background: var(--bg-elevated);
+  border-right: 1px solid color-mix(in srgb, var(--bubble-accent) 55%, var(--border));
+  border-bottom: 1px solid color-mix(in srgb, var(--bubble-accent) 55%, var(--border));
+}
+
+.speech-bubble-compact {
+  max-width: 14rem;
+  padding: 0.55rem 0.75rem 0.7rem;
+}
+
+.speech-bubble-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bubble-accent);
+}
+
+.speech-bubble-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--bubble-accent);
+}
+
+.speech-bubble-text {
+  font-size: 0.95rem;
+  line-height: 1.35;
+  color: var(--fg);
+}
+
+.type-ring {
+  position: absolute;
+  inset: 8% auto auto 50%;
+  width: min(34rem, 90vw);
+  translate: -50% 0;
+  display: flex;
+  gap: 0;
+  overflow: hidden;
+  pointer-events: none;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--fg) 22%, transparent);
+  white-space: nowrap;
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.type-ring span {
+  animation: ring-scroll 28s linear infinite;
+}
+
+@keyframes ring-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta-primary:hover,
+  .cta-secondary:hover {
+    transform: none;
+  }
+
+  .type-ring span {
+    animation: none;
+  }
 }
