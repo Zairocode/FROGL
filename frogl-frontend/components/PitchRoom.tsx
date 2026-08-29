@@ -1,60 +1,87 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation } from "convex/react";
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { CoachingCues } from "./CoachingCues";
 import { ExposureScore } from "./ExposureScore";
 import { JurorAvatar } from "./JurorAvatar";
 import { LiveCamera } from "./LiveCamera";
 import { SpeechBubble } from "./SpeechBubble";
 import { useAccount } from "@/lib/account-context";
-import type { PublicJuror } from "@/lib/accounts";
-import { useJuryChat } from "@/lib/chat-context";
-import { latestByJuror } from "@/lib/chat-store";
+import type { ChatMessage } from "@/lib/chat-store";
+import { useCurrentSession, usePanel, useTranscript } from "@/lib/frogl";
+import { usePitchCapture } from "@/lib/usePitchCapture";
 
 function formatTimer(ms: number) {
-  const total = Math.floor(ms / 1000);
+  const total = Math.max(0, Math.floor(ms / 1000));
   const m = String(Math.floor(total / 60)).padStart(2, "0");
   const s = String(total % 60).padStart(2, "0");
   return `${m}:${s}`;
 }
 
 export function PitchRoom() {
-  const { messages } = useJuryChat();
-  const { online } = useAccount();
-  const [elapsed, setElapsed] = useState(0);
-  const [listening, setListening] = useState(false);
-  const elapsedRef = useRef(0);
-  elapsedRef.current = elapsed;
-  const visible = useMemo(() => {
-    const byId = new Map<string, PublicJuror>();
-    for (const juror of online) byId.set(juror.id, juror);
-    for (const message of messages) {
-      if (!byId.has(message.accountId)) {
-        byId.set(message.accountId, {
-          id: message.accountId,
-          name: message.author,
-          color: message.color,
-        });
-      }
-    }
-    return [...byId.values()];
-  }, [messages, online]);
-  const bubbles = useMemo(
-    () =>
-      latestByJuror(
-        messages.filter(
-          (message) => message.cue !== "volume" && message.cue !== "posture",
-        ),
-      ),
-    [messages],
-  );
+  const { account } = useAccount();
+  const session = useCurrentSession();
+  const live = session?.status === "live" ? session : null;
+  const activeId = live?._id ?? null;
 
+  const createSession = useMutation(api.sessions.create);
+  const startSession = useMutation(api.sessions.start);
+  const endSession = useMutation(api.sessions.end);
+
+  const cap = usePitchCapture(activeId);
+  const panel = usePanel(activeId);
+  const lines = useTranscript(activeId);
+
+  const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
-    if (!listening) return;
-    const started = Date.now() - elapsedRef.current;
-    const id = window.setInterval(() => setElapsed(Date.now() - started), 250);
+    if (!live?.startedAt) return setElapsed(0);
+    const tick = () => setElapsed(Date.now() - live.startedAt!);
+    tick();
+    const id = window.setInterval(tick, 250);
     return () => window.clearInterval(id);
-  }, [listening]);
+  }, [live?.startedAt]);
+
+  // Las burbujas salen del panel unificado: la reaccion de un agente y el
+  // mensaje de un humano llegan con la misma forma, asi que SpeechBubble
+  // no distingue quien habla.
+  const bubbles = useMemo(() => {
+    const map: Record<string, ChatMessage> = {};
+    for (const juror of panel) {
+      if (!juror.bubble?.text) continue;
+      map[juror.seatId] = {
+        id: juror.seatId,
+        accountId: juror.seatId,
+        author: juror.name,
+        color: juror.color,
+        text: juror.bubble.text,
+        createdAt: Date.now(),
+      };
+    }
+    return map;
+  }, [panel]);
+
+  const dicho = lines.map((l) => l.text).join(" ");
+
+  async function toggle() {
+    if (cap.recording) {
+      cap.stop();
+      if (activeId) await endSession({ sessionId: activeId });
+      return;
+    }
+    let id: Id<"sessions"> | null = activeId;
+    if (!id) {
+      id = await createSession({
+        title: "Pitch en vivo",
+        presenterName: account?.name ?? "Pitcher",
+      });
+      await startSession({ sessionId: id });
+    }
+    // Le pasamos la sesion recien creada: la query todavia no la trajo.
+    await cap.start(id);
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 py-8">
@@ -71,24 +98,34 @@ export function PitchRoom() {
           <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
             <button
               type="button"
-              onClick={() => setListening((v) => !v)}
+              onClick={() => void toggle()}
               className={`flex h-16 w-16 items-center justify-center rounded-full border-2 transition-transform hover:scale-[1.03] ${
-                listening
+                cap.recording
                   ? "border-accent-teal bg-accent-teal/15 text-accent-teal"
                   : "border-border bg-bg-elevated text-fg"
               }`}
-              aria-pressed={listening}
+              aria-pressed={cap.recording}
             >
               <span className="sr-only">
-                {listening ? "Pausar micrófono" : "Empezar a hablar"}
+                {cap.recording ? "Cortar el pitch" : "Empezar a hablar"}
               </span>
-              <MicIcon live={listening} />
+              <MicIcon live={cap.recording} />
             </button>
             <p className="mt-3 text-sm text-fg-muted">
-              {listening
+              {cap.recording
                 ? "En vivo — el jurado te escucha y te valora"
                 : "Tocá el mic para empezar"}
             </p>
+            {cap.recording && (
+              <div
+                className="mt-2 h-1 rounded-full bg-accent-teal transition-[width] duration-100"
+                style={{ width: `${Math.min(100, cap.level * 400)}%` }}
+                aria-hidden
+              />
+            )}
+            {cap.error && (
+              <p className="mt-2 text-sm text-accent-pink">{cap.error}</p>
+            )}
           </div>
           <CoachingCues />
           <ExposureScore />
@@ -98,22 +135,29 @@ export function PitchRoom() {
       <section className="mt-8 w-full text-left">
         <p className="label-caps mb-2">Transcript</p>
         <p className="min-h-[5rem] text-lg leading-relaxed text-fg-muted">
-          {listening
-            ? "Cuando conectemos el mic, tus frases aparecen acá. El jurado te tira globos, coaching y emojis — no ves su chat."
-            : "Tu pitch se va a leer acá, en vivo."}
+          {dicho || cap.interim ? (
+            <>
+              <span className="text-fg">{dicho}</span>{" "}
+              <span className="opacity-60">{cap.interim}</span>
+            </>
+          ) : cap.recording ? (
+            "Escuchando…"
+          ) : (
+            "Tu pitch se va a leer acá, en vivo."
+          )}
         </p>
       </section>
 
       <section className="mt-auto grid grid-cols-2 gap-4 pt-4 lg:grid-cols-4">
-        {visible.length === 0 ? (
+        {panel.length === 0 ? (
           <p className="col-span-full py-6 text-center text-sm text-fg-muted">
-            Todavía no hay jurados con cuenta en la sala.
+            Todavía no hay jurados en la sala.
           </p>
         ) : (
-          visible.map((juror) => {
-            const bubble = bubbles[juror.id];
+          panel.map((juror) => {
+            const bubble = bubbles[juror.seatId];
             return (
-              <div key={juror.id} className="flex flex-col items-center">
+              <div key={juror.seatId} className="flex flex-col items-center">
                 <div className="flex min-h-[7.5rem] w-full items-end justify-center">
                   {bubble ? (
                     <SpeechBubble message={bubble} compact />
@@ -125,7 +169,7 @@ export function PitchRoom() {
                 </div>
                 <JurorAvatar name={juror.name} color={juror.color} size={72} />
                 <p className="label-caps mt-2" style={{ color: juror.color }}>
-                  {juror.name}
+                  {juror.emoji} {juror.name}
                 </p>
               </div>
             );

@@ -24,7 +24,9 @@ export function SpeechBubble({
       ease: "out(3)",
       duration: 380,
     });
-    return () => animation.pause();
+    return () => {
+      animation.pause();
+    };
   }, [message.id]);
 
   return (

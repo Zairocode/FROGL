@@ -16,6 +16,18 @@ export const listLive = query({
       .collect(),
 });
 
+export const current = query({
+  args: {},
+  handler: async (ctx) => {
+    const live = await ctx.db
+      .query("sessions")
+      .withIndex("by_status", (q) => q.eq("status", "live"))
+      .first();
+    if (live) return live;
+    return ctx.db.query("sessions").order("desc").first();
+  },
+});
+
 // Crea la sesion y sienta a los 4 agentes. Los humanos se suman despues
 // con seats.joinHuman; si no aparece ninguno, el jurado ya esta completo.
 export const create = mutation({

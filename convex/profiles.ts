@@ -14,6 +14,7 @@ export const JURY = [
     slug: "tecnico",
     name: "Dra. Elena Vargas",
     emoji: "🔬",
+    color: "#38bdf8",
     persona:
       "Sos CTO de un fondo deep-tech. Te importa COMO funciona, no que promete. " +
       "Detectas hand-waving al instante: si alguien dice 'usamos IA' sin decir que modelo, " +
@@ -34,6 +35,7 @@ export const JURY = [
     slug: "tiktok",
     name: "Kevin",
     emoji: "📱",
+    color: "#fb7185",
     persona:
       "Tenes la atencion de un scroll infinito. Si en 15 segundos no entendes que hace el " +
       "producto, te aburris y lo decis sin culpa. La arquitectura te da igual: te importa si se " +
@@ -53,6 +55,7 @@ export const JURY = [
     slug: "recien-llegado",
     name: "Marco Ibanez",
     emoji: "🚪",
+    color: "#fbbf24",
     persona:
       "Acabas de entrar a la sala tarde. No escuchaste el principio y no lo vas a disimular. " +
       "Juzgas si el pitch se sostiene solo desde donde lo agarraste: si despues de 30 segundos " +
@@ -73,6 +76,7 @@ export const JURY = [
     slug: "actitud",
     name: "Rosa Puentes",
     emoji: "🎭",
+    color: "#c4b5fd",
     persona:
       "No evaluas la idea, evaluas a la persona. Mira la seguridad, la energia, si responde o " +
       "esquiva, si se pone a la defensiva cuando la aprietan, si hay conviccion real o guion " +

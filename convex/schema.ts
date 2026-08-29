@@ -31,6 +31,7 @@ export default defineSchema({
     slug: v.string(),
     name: v.string(),
     emoji: v.string(),
+    color: v.optional(v.string()),
     persona: v.string(),
     rubric: v.array(
       v.object({
@@ -59,6 +60,8 @@ export default defineSchema({
     userId: v.optional(v.string()),
     joinedAtMs: v.number(),
     active: v.boolean(),
+    lastSeen: v.optional(v.number()), // heartbeat del humano; los agentes no lo usan
+    color: v.optional(v.string()),
   }).index("by_session", ["sessionId"]),
 
   transcript: defineTable({
@@ -106,8 +109,11 @@ export default defineSchema({
   // Chat de los humanos mirando en vivo
   messages: defineTable({
     sessionId: v.id("sessions"),
+    accountId: v.string(),
     author: v.string(),
+    color: v.string(),
     text: v.string(),
+    cue: v.optional(v.string()), // chat | volume | posture | rating
   }).index("by_session", ["sessionId"]),
 
   // Corpus del RAG. Un chunk = un tag. Si sirve para dos jurados, se duplica.
