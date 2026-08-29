@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
-import { DM_Sans, Fraunces, JetBrains_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Figtree, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import "./globals.css";
 
-const display = Fraunces({
-  variable: "--font-fraunces",
+// Bricolage tiene caracter propio sin ser un chiste; Figtree es redonda y
+// calida, que es lo que le faltaba a la pagina. Entran por los mismos
+// tokens de siempre, asi que ningun componente se entera del cambio.
+const display = Bricolage_Grotesque({
+  variable: "--font-display-src",
   subsets: ["latin"],
+  weight: ["400", "600", "700", "800"],
 });
 
-const sans = DM_Sans({
-  variable: "--font-dm-sans",
+const sans = Figtree({
+  variable: "--font-ui-src",
   subsets: ["latin"],
 });
 

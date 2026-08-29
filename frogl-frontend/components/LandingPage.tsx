@@ -4,12 +4,31 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConsoleType } from "@/components/landing/ConsoleType";
 import { MicToFrogl } from "@/components/landing/MicToFrogl";
+import { Reveal } from "@/components/landing/Reveal";
 import { useRole } from "@/lib/role-context";
 
 const PROBLEM_LINES = [
   "Formular un pitch es molesto.",
   "Te enfrentás a jueces y no sabés cómo comunicar tu idea.",
   "Ensayás solo… y el feedback llega tarde, o no llega.",
+];
+
+const JURADOS = [
+  { slug: "tecnico", emoji: "🔬", color: "#38bdf8", name: "Dra. Elena Vargas", que: "Factibilidad y arquitectura. La única que contrasta tus datos contra la web." },
+  { slug: "comercial", emoji: "💼", color: "#34d399", name: "Lucía Ferrer", que: "Quién paga, cuánto, y por qué te elige a vos." },
+  { slug: "tiktok", emoji: "📱", color: "#ff8fab", name: "Kevin", que: "Se aburre a los quince segundos. Si no hay gancho, se fue." },
+  { slug: "usuario-final", emoji: "🙋", color: "#f97316", name: "Sandra Ríos", que: "No sabe de tecnología. Solo si le sirve el lunes a la mañana." },
+  { slug: "recien-llegado", emoji: "🚪", color: "#fbbf24", name: "Marco Ibáñez", que: "Llegó tarde. Mide si tu pitch se sostiene solo." },
+  { slug: "actitud", emoji: "🎭", color: "#c4b5fd", name: "Rosa Puentes", que: "No mira la idea, te mira a vos: convicción y manejo de presión." },
+];
+
+const PREGUNTAS = [
+  { p: "¿Me interrumpen mientras hablo?", r: "No. Antes lo hacían y era un desastre para practicar. Ahora reaccionan al costado y el juicio llega al final." },
+  { p: "¿De dónde saca que un dato es falso?", r: "Busca en la web y te deja el link de lo que encontró. Si no estás de acuerdo con la fuente, la abrís y decidís vos." },
+  { p: "¿El que presenta lee el chat del jurado?", r: "No. Solo ve los globos que cada jurado decide tirarle. Lo que se hablan entre ellos queda del otro lado." },
+  { p: "¿Qué necesito para usarlo?", r: "Chrome o Edge y un micrófono. No hay nada que instalar." },
+  { p: "¿Qué pasa con lo que digo?", r: "El audio se transcribe en el servidor y el texto queda guardado para que puedas releerlo y para que el jurado lo evalúe." },
+  { p: "¿Puedo practicar sin jurado?", r: "Sí. En preparar escribís el texto y te da una nota rápida antes de decirlo en voz alta." },
 ];
 
 export function LandingPage() {
@@ -95,148 +114,148 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* Cómo funciona — el titulo se queda fijo a la izquierda y los pasos
+          pasan al lado. Rompe con el bloque centrado de antes. */}
       <section
         id="como"
-        className="mx-auto max-w-2xl border-t border-border/40 px-5 py-20"
+        className="mx-auto max-w-5xl border-t border-border/40 px-5 py-24 sm:px-8"
       >
-        <p className="label-caps text-accent-teal">Cómo funciona</p>
-        <h2 className="mt-3 font-[family-name:var(--font-display)] text-[clamp(1.6rem,3.2vw,2.1rem)] leading-tight text-fg">
-          Primero te corrige. Después te juzga.
-        </h2>
+        <div className="grid gap-12 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] lg:gap-20">
+          <Reveal className="lg:sticky lg:top-24 lg:self-start">
+            <p className="label-caps text-accent-teal">Cómo funciona</p>
+            <h2 className="mt-3 font-[family-name:var(--font-display)] text-[clamp(1.7rem,3.4vw,2.3rem)] leading-[1.08] text-fg">
+              Primero te corrige.
+              <br />
+              Después te juzga.
+            </h2>
+          </Reveal>
 
-        <ol className="mt-10 flex flex-col gap-9">
-          <li className="grid grid-cols-[2.2rem_1fr] gap-4">
-            <span className="font-[family-name:var(--font-timer)] text-lg text-accent-teal tabular-nums">
-              01
-            </span>
-            <div>
-              <h3 className="text-fg">Decís de qué vas a hablar</h3>
-              <p className="mt-1 text-fg-muted">
-                El tema y cuánto tenés. Sin eso el jurado te escucha a ciegas y
-                no puede saber si te fuiste por las ramas.
-              </p>
-            </div>
-          </li>
-          <li className="grid grid-cols-[2.2rem_1fr] gap-4">
-            <span className="font-[family-name:var(--font-timer)] text-lg text-accent-teal tabular-nums">
-              02
-            </span>
-            <div>
-              <h3 className="text-fg">Hablás de corrido</h3>
-              <p className="mt-1 text-fg-muted">
-                Nadie te corta. El jurado reacciona al costado, con caritas que
-                mirás de reojo o ignorás si estás en tema.
-              </p>
-            </div>
-          </li>
-          <li className="grid grid-cols-[2.2rem_1fr] gap-4">
-            <span className="font-[family-name:var(--font-timer)] text-lg text-accent-teal tabular-nums">
-              03
-            </span>
-            <div>
-              <h3 className="text-fg">Te marca lo que no cierra</h3>
-              <p className="mt-1 text-fg-muted">
-                Si dijiste que el mercado son 900 mil millones, lo busca y te
-                muestra la fuente que dice otra cosa. No solo te avisa: te da la
-                frase para decir en su lugar. Corregís, lo repetís, y volvés a
-                pasar. Al jurado no llegás con datos falsos.
-              </p>
-            </div>
-          </li>
-          <li className="grid grid-cols-[2.2rem_1fr] gap-4">
-            <span className="font-[family-name:var(--font-timer)] text-lg text-accent-teal tabular-nums">
-              04
-            </span>
-            <div>
-              <h3 className="text-fg">Recién ahí te evalúan</h3>
-              <p className="mt-1 text-fg-muted">
-                Seis jurados con sesgos distintos: la técnica que pregunta qué
-                se rompe al escalar, el que se aburre a los quince segundos, el
-                que llegó tarde, la que solo mira cómo te parás. Cada uno te
-                dice qué funcionó, qué romper y en qué minuto se te cayó.
-              </p>
-            </div>
-          </li>
-        </ol>
+          <ol className="flex flex-col gap-14">
+            {[
+              {
+                n: "01",
+                t: "Decís de qué vas a hablar",
+                d: "El tema y cuánto tenés. Sin eso el jurado te escucha a ciegas y no puede saber si te fuiste por las ramas.",
+              },
+              {
+                n: "02",
+                t: "Hablás de corrido",
+                d: "Nadie te corta. El jurado reacciona al costado, con caritas que mirás de reojo o ignorás si estás en tema.",
+              },
+              {
+                n: "03",
+                t: "Te marca lo que no cierra",
+                d: "Si dijiste que el mercado son 900 mil millones, lo busca y te muestra la fuente que dice otra cosa. No solo te avisa: te da la frase para decir en su lugar. Corregís, lo repetís, y volvés a pasar.",
+              },
+              {
+                n: "04",
+                t: "Recién ahí te evalúan",
+                d: "Seis jurados con sesgos distintos. Cada uno te dice qué funcionó, qué romper y en qué minuto se te cayó.",
+              },
+            ].map((p, i) => (
+              <Reveal key={p.n} delay={i * 90}>
+                <li className="grid grid-cols-[2.6rem_1fr] gap-x-5">
+                  <span className="font-[family-name:var(--font-timer)] text-sm tabular-nums text-accent-teal">
+                    {p.n}
+                  </span>
+                  <div>
+                    <h3 className="font-[family-name:var(--font-display)] text-xl text-fg">
+                      {p.t}
+                    </h3>
+                    <p className="mt-2 max-w-prose text-fg-muted">{p.d}</p>
+                  </div>
+                </li>
+              </Reveal>
+            ))}
+          </ol>
+        </div>
       </section>
 
+      {/* El panel — los seis desparramados, no una caja centrada */}
       <section
         id="jurados"
-        className="mx-auto max-w-2xl border-t border-border/40 px-5 py-16"
+        className="mx-auto max-w-5xl border-t border-border/40 px-5 py-24 sm:px-8"
       >
-        <p className="label-caps text-accent-teal">El panel</p>
-        <h2 className="mt-3 font-[family-name:var(--font-display)] text-[clamp(1.5rem,3vw,1.9rem)] leading-tight text-fg">
-          Los jurados sintéticos ocupan las sillas que no llenan las personas
-        </h2>
-        <p className="mt-4 text-fg-muted">
-          Un asiento del jurado es un asiento, lo llene un agente o alguien con
-          cuenta. Escriben en el mismo panel y el que presenta no distingue. Si
-          hay expertos disponibles, escuchan en vivo y firman su veredicto.
-        </p>
-        <button
-          type="button"
-          className="cta-primary mt-6"
-          onClick={() => router.push("/cuenta")}
-        >
-          Entrar como jurado →
-        </button>
+        <Reveal>
+          <p className="label-caps text-accent-teal">Quiénes escuchan</p>
+          <h2 className="mt-3 max-w-2xl font-[family-name:var(--font-display)] text-[clamp(1.6rem,3.2vw,2.1rem)] leading-[1.1] text-fg">
+            Seis cabezas que no piensan igual
+          </h2>
+        </Reveal>
+
+        <div className="mt-12 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+          {JURADOS.map((j, i) => (
+            <Reveal key={j.slug} delay={i * 70}>
+              <div className="flex gap-3">
+                <span className="text-2xl leading-none" aria-hidden>
+                  {j.emoji}
+                </span>
+                <div>
+                  <p
+                    className="font-[family-name:var(--font-display)] text-base"
+                    style={{ color: j.color }}
+                  >
+                    {j.name}
+                  </p>
+                  <p className="mt-1 text-sm text-fg-muted">{j.que}</p>
+                </div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+
+        <Reveal delay={120}>
+          <div className="mt-14 max-w-2xl border-l-2 border-accent-teal/40 pl-5">
+            <p className="text-fg-muted">
+              Un asiento del jurado es un asiento, lo llene un agente o alguien
+              con cuenta. Escriben en el mismo panel y el que presenta no
+              distingue. Si hay expertos disponibles, escuchan en vivo y firman
+              su veredicto.
+            </p>
+            <button
+              type="button"
+              className="cta-primary mt-6"
+              onClick={() => router.push("/cuenta")}
+            >
+              Entrar como jurado →
+            </button>
+          </div>
+        </Reveal>
       </section>
 
+      {/* Preguntas — dos columnas, alineado a la izquierda */}
       <section
         id="faq"
-        className="mx-auto max-w-2xl border-t border-border/40 px-5 py-16"
+        className="mx-auto max-w-5xl border-t border-border/40 px-5 py-24 sm:px-8"
       >
-        <p className="label-caps text-accent-teal">Preguntas</p>
-        <dl className="mt-8 flex flex-col gap-7">
-          <div>
-            <dt className="text-fg">¿Me van a interrumpir mientras hablo?</dt>
-            <dd className="mt-1 text-fg-muted">
-              No. Antes lo hacían y era un desastre para practicar. Ahora
-              reaccionan al costado y el juicio llega al final.
-            </dd>
-          </div>
-          <div>
-            <dt className="text-fg">¿De dónde saca que un dato es falso?</dt>
-            <dd className="mt-1 text-fg-muted">
-              Busca en la web y te deja el link de lo que encontró. Si no estás
-              de acuerdo con la fuente, la abrís y decidís vos.
-            </dd>
-          </div>
-          <div>
-            <dt className="text-fg">¿El que presenta lee el chat del jurado?</dt>
-            <dd className="mt-1 text-fg-muted">
-              No. Solo ve los globos que cada jurado decide tirarle. Lo que se
-              hablan entre ellos queda del otro lado.
-            </dd>
-          </div>
-          <div>
-            <dt className="text-fg">¿Qué necesito para usarlo?</dt>
-            <dd className="mt-1 text-fg-muted">
-              Chrome o Edge y un micrófono. No hay nada que instalar.
-            </dd>
-          </div>
-          <div>
-            <dt className="text-fg">¿Qué pasa con lo que digo?</dt>
-            <dd className="mt-1 text-fg-muted">
-              El audio se transcribe en el servidor y el texto queda guardado
-              para que puedas releerlo y para que el jurado lo evalúe. No es
-              privado del navegador.
-            </dd>
-          </div>
+        <Reveal>
+          <p className="label-caps text-accent-teal">Preguntas</p>
+        </Reveal>
+        <dl className="mt-10 grid gap-x-14 gap-y-10 md:grid-cols-2">
+          {PREGUNTAS.map((q, i) => (
+            <Reveal key={q.p} delay={i * 60}>
+              <dt className="font-[family-name:var(--font-display)] text-lg text-fg">
+                {q.p}
+              </dt>
+              <dd className="mt-2 text-fg-muted">{q.r}</dd>
+            </Reveal>
+          ))}
         </dl>
       </section>
 
-      <footer className="border-t border-border/40 px-5 py-10 text-center">
-        <a
-          href="/privacidad"
-          className="text-[0.75rem] font-semibold tracking-[0.14em] text-fg-muted uppercase hover:text-fg"
-        >
-          Privacidad
-        </a>
-        <p className="mt-3 text-xs text-fg-muted/80">
-          El audio se transcribe en el servidor y el texto se guarda con tu
-          sesión.
-        </p>
+      <footer className="border-t border-border/40 px-5 py-12 sm:px-8">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4">
+          <p className="max-w-md text-xs text-fg-muted/80">
+            El audio se transcribe en el servidor y el texto se guarda con tu
+            sesión.
+          </p>
+          <a
+            href="/privacidad"
+            className="text-[0.75rem] font-semibold tracking-[0.14em] text-fg-muted uppercase hover:text-fg"
+          >
+            Privacidad
+          </a>
+        </div>
       </footer>
     </main>
   );

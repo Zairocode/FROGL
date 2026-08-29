@@ -26,8 +26,8 @@
   --text-body: 1.0625rem;
   --text-label: 0.75rem;
 
-  --font-display: var(--font-fraunces);
-  --font-ui: var(--font-dm-sans);
+  --font-display: var(--font-display-src);
+  --font-ui: var(--font-ui-src);
   --font-timer: var(--font-jetbrains);
 }
 
@@ -52,15 +52,15 @@
   --color-jury-late: var(--jury-late);
   --color-jury-actitud: var(--jury-actitud);
 
-  --font-sans: var(--font-dm-sans);
+  --font-sans: var(--font-ui-src);
   --font-mono: var(--font-jetbrains);
-  --font-display: var(--font-fraunces);
+  --font-display: var(--font-display-src);
 }
 
 body {
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--font-dm-sans), "DM Sans", sans-serif;
+  font-family: var(--font-ui-src), ui-sans-serif, system-ui, sans-serif;
   font-size: var(--text-body);
 }
 
@@ -297,7 +297,7 @@ body {
 .coaching-banner {
   border-radius: 1rem;
   padding: 0.85rem 1rem;
-  font-family: var(--font-fraunces), serif;
+  font-family: var(--font-display-src), ui-sans-serif, system-ui, sans-serif;
   font-size: 1.25rem;
   line-height: 1.2;
 }
@@ -357,7 +357,7 @@ body {
   justify-content: center;
   border-radius: 999px;
   color: #212529;
-  font-family: var(--font-fraunces), serif;
+  font-family: var(--font-display-src), ui-sans-serif, system-ui, sans-serif;
   font-size: 1.15rem;
   font-weight: 650;
 }
