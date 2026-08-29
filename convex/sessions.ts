@@ -1,5 +1,5 @@
 import { mutation, query } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 import { v } from "convex/values";
 
 export const get = query({
@@ -41,26 +41,39 @@ export const create = mutation({
 
 export const start = mutation({
   args: { sessionId: v.id("sessions") },
-  handler: (ctx, { sessionId }) =>
-    ctx.db.patch(sessionId, { status: "live", startedAt: Date.now() }),
+  handler: async (ctx, { sessionId }) => {
+    await ctx.db.patch(sessionId, { status: "live", startedAt: Date.now() });
+
+    const seats = await ctx.db
+      .query("seats")
+      .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
+      .collect();
+
+    for (const seat of seats) {
+      if (seat.kind !== "agent" || !seat.profileId) continue;
+      const profile = await ctx.db.get(seat.profileId);
+      if (!profile) continue;
+      // Nadie reacciona antes de haber llegado: Marco entra a los 90s.
+      const firstTick = Math.max(profile.reactEveryMs, seat.joinedAtMs);
+      await ctx.scheduler.runAfter(firstTick, internal.loop.tick, {
+        seatId: seat._id,
+      });
+    }
+  },
 });
 
 export const end = mutation({
   args: { sessionId: v.id("sessions") },
   handler: async (ctx, { sessionId }) => {
     await ctx.db.patch(sessionId, { status: "ended", endedAt: Date.now() });
-
-    // Cierra el loop: despues de esto el scheduler deja de reaccionar.
-    // Ahora si, todos los agentes califican su scorecard final.
+    // El loop se corta solo al no estar "live". Aca disparamos el scorecard final.
     const seats = await ctx.db
       .query("seats")
       .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
       .collect();
     for (const seat of seats) {
       if (seat.kind === "agent" && seat.profileId) {
-        await ctx.scheduler.runAfter(0, internal.jury.score, {
-          seatId: seat._id,
-        });
+        await ctx.scheduler.runAfter(0, api.jury.score, { seatId: seat._id });
       }
     }
   },
