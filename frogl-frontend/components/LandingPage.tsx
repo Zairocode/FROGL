@@ -84,6 +84,13 @@ export function LandingPage() {
             <button
               type="button"
               className="cta-secondary"
+              onClick={() => router.push("/estudio")}
+            >
+              Estudio
+            </button>
+            <button
+              type="button"
+              className="cta-secondary"
               onClick={() => router.push("/cuenta")}
             >
               Soy jurado

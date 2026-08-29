@@ -12,6 +12,10 @@ export function AppNav() {
   const router = useRouter();
   const showJuryRoom = hydrated && Boolean(account);
 
+  if (pathname === "/estudio") {
+    return null;
+  }
+
   function exit() {
     if (account) logout();
     clearRole();
@@ -49,6 +53,9 @@ export function AppNav() {
               Inicio
             </Link>
           )}
+          <Link href="/estudio" className="hover:text-fg">
+            Estudio
+          </Link>
           {role === "pitcher" ? (
             <Link
               href="/pitch"

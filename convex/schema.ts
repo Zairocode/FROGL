@@ -116,6 +116,15 @@ export default defineSchema({
     cue: v.optional(v.string()), // chat | volume | posture | rating
   }).index("by_session", ["sessionId"]),
 
+  // Pitch del estudio (cámara + texto): se guarda y se califica 0–10.
+  studioGrades: defineTable({
+    text: v.string(),
+    score: v.number(),
+    why: v.string(),
+    durationMs: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_created", ["createdAt"]),
+
   // Corpus del RAG. Un chunk = un tag. Si sirve para dos jurados, se duplica.
   chunks: defineTable({
     tag: v.string(),
