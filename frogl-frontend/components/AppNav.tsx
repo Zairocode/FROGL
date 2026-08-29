@@ -86,18 +86,18 @@ export function AppNav() {
               {account ? account.name : "Pitcher"} · salir
             </button>
           ) : null}
-          <Link
-            href={
-              account
-                ? "/jurado"
-                : role === "pitcher"
-                  ? "/pitch"
-                  : "/"
-            }
-            className="cta-primary"
-          >
-            {account ? "Panel →" : role === "pitcher" ? "Sala →" : "Empezar →"}
-          </Link>
+          {/* Sin rol elegido todavia no hay adonde mandar este boton
+              (caia a "/", la propia landing). "Preparar mi pitch" ya
+              vive como CTA principal ahi, asi que solo mostramos esto
+              una vez que hay algo real a donde ir. */}
+          {account || role === "pitcher" ? (
+            <Link
+              href={account ? "/jurado" : "/pitch"}
+              className="cta-primary"
+            >
+              {account ? "Panel →" : "Sala →"}
+            </Link>
+          ) : null}
         </div>
       </div>
     </header>
