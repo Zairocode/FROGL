@@ -20,9 +20,9 @@ guardadas en la tabla `profiles`, editables sin deploy:
 
 La tercera es la que hace el trabajo pesado:
 
-- `full` — escuchó todo. (la técnica, la de actitud)
-- `lateJoin` — entró tarde, solo ve desde `seat.joinedAtMs`. Mide si tu pitch se sostiene solo.
-- `window` — solo retiene los últimos `windowMs`. El de atención de TikTok literalmente no recuerda lo de hace medio minuto.
+- `full` — escuchó todo. (Elena la técnica, Rosa la de actitud)
+- `lateJoin` — entró tarde, solo ve desde `seat.joinedAtMs`. Marco entra a los 90s. Mide si tu pitch se sostiene solo.
+- `window` — solo retiene los últimos `windowMs`. Kevin ve 20 segundos: literalmente no recuerda lo de hace medio minuto.
 
 Todo eso vive en `convex/jury.ts::sliceTranscript`, que son diez líneas.
 
@@ -33,16 +33,52 @@ es rellenar asientos.
 
 ## Setup
 
-```bash
-npm install
-npx convex dev          # login + crea convex/_generated  <- SIN ESTO NADA COMPILA
+Backend compartido del equipo (ya desplegado, con los 4 jurados sembrados):
+
+```
+https://colorful-mole-701.convex.cloud
 ```
 
-En el dashboard de Convex → Settings → Environment Variables, cargá `AI_GATEWAY_API_KEY`.
-Después, desde el dashboard o el front, corré una vez `profiles:seed` para sembrar los cuatro jurados.
+### Front — no necesitan `convex dev` para nada
+
+Creás `.env.local` con una línea:
+
+```
+NEXT_PUBLIC_CONVEX_URL=https://colorful-mole-701.convex.cloud
+```
 
 ```bash
+npm install
 npm run dev
+```
+
+Listo. Leen y escriben contra las funciones ya desplegadas y todos ven los mismos datos.
+
+### Back — los que tocan `convex/`
+
+Empujan al deployment compartido con el deploy key del equipo:
+
+```bash
+CONVEX_DEPLOY_KEY="dev:colorful-mole-701|..." npx convex deploy
+```
+
+> **No corran `npx convex dev` a secas sin la key.** Les crea un backend local
+> propio y aislado, y van a pasar horas preguntándose por qué no ven los datos
+> de los demás.
+
+### Pendiente de configurar
+
+En el dashboard de Convex → Settings → Environment Variables:
+
+```
+AI_GATEWAY_API_KEY=...
+```
+
+Sin eso fallan `jury.react`, `jury.score` y `rag.ingest` — las tres que llaman al
+modelo. Después, una vez por deployment:
+
+```bash
+npx convex run corpus:load
 ```
 
 ## Mapa
@@ -51,11 +87,25 @@ npm run dev
 |---|---|---|
 | `convex/schema.ts` | el contrato, todos codean contra esto | todos |
 | `convex/profiles.ts` | los 4 jurados: personas, rúbricas, políticas | orquestación |
-| `convex/jury.ts` | el agente: reacciona y puntúa | back 2 |
+| `convex/corpus.ts` | motor de errores comunes = el RAG real | orquestación |
+| `convex/tuning.ts` | banco de prueba de rúbricas | orquestación |
+| `convex/jury.ts` | el agente: `react()` y `score()` | back 2 |
 | `convex/rag.ts` | ingest + vector search por tag | back 2 |
+| `convex/loop.ts` | latido: dispara `react` cada `reactEveryMs` | back 2 |
 | `convex/sessions.ts` `seats.ts` `transcript.ts` | espina dorsal de la sala | back 1 |
 | `convex/live.ts` | queries que consume el front | back 1 |
 | `app/` | sala del pitch + panel del jurado | front 1 y 2 |
+
+## Afinar las rúbricas
+
+```bash
+npx convex run tuning:dryRun '{"pitch":"caradura"}'
+```
+
+Tres pitches de prueba: `fuerte`, `flojo`, `caradura`. El `caradura` tiene contenido
+pésimo y entrega impecable — existe para verificar que **Rosa diverja de Elena**.
+Si las dos le ponen la misma nota, los perfiles no discriminan y el producto no
+tiene sentido. Ese es el test que importa, no la nota en sí.
 
 ## Transcripción
 
@@ -65,8 +115,9 @@ momento en que un jurado hace la pregunta **en voz alta**, que es el que impresi
 
 ## Pendiente
 
+- [x] Loop que dispara `jury.react` cada `profile.reactEveryMs`
+- [x] Scorecard automático al cerrar la sesión
 - [ ] Sala de pitch (mic + timer + transcript en vivo)
 - [ ] Panel del jurado (reacciones, preguntas, chat de humanos)
-- [ ] Scorecard final
-- [ ] Loop que dispara `jury.react` cada `profile.reactEveryMs`
-- [ ] Cargar corpus del RAG por tag
+- [ ] Scorecard final en pantalla
+- [ ] Cargar el corpus del RAG (`corpus:load`) — necesita la key del modelo
