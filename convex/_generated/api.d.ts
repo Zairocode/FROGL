@@ -21,6 +21,7 @@ import type * as rag from "../rag.js";
 import type * as review from "../review.js";
 import type * as seats from "../seats.js";
 import type * as sessions from "../sessions.js";
+import type * as studio from "../studio.js";
 import type * as transcript from "../transcript.js";
 import type * as tuning from "../tuning.js";
 
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   review: typeof review;
   seats: typeof seats;
   sessions: typeof sessions;
+  studio: typeof studio;
   transcript: typeof transcript;
   tuning: typeof tuning;
 }>;
