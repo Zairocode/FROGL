@@ -38,8 +38,8 @@ npm install
 npx convex dev          # login + crea convex/_generated  <- SIN ESTO NADA COMPILA
 ```
 
-En el dashboard de Convex → Settings → Environment Variables, cargá `AI_GATEWAY_API_KEY`.
-Después, desde el dashboard o el front, corré una vez `profiles:seed` para sembrar los cuatro jurados.
+En el dashboard de Convex → Settings → Environment Variables, cargá `GEMINI_API_KEY`.
+Después, desde el dashboard o el front, corré una vez `profiles:seed` y `seed:seedRag`.
 
 ```bash
 npm run dev
@@ -54,19 +54,52 @@ npm run dev
 | `convex/jury.ts` | el agente: reacciona y puntúa | back 2 |
 | `convex/rag.ts` | ingest + vector search por tag | back 2 |
 | `convex/sessions.ts` `seats.ts` `transcript.ts` | espina dorsal de la sala | back 1 |
-| `convex/live.ts` | queries que consume el front | back 1 |
+| `convex/live.ts` | queries que consume el front + mutaciones de humanos | back 1 |
+| `convex/crons.ts` `scheduler.ts` | el loop: dispara `jury.react` cada `reactEveryMs` | back 1 |
+| `convex/speak.ts` | cola de TTS: el jurado "habla" vía el front | back 1 |
+| `convex/seed.ts` | siembra el corpus del RAG por tag | back 2 |
 | `app/` | sala del pitch + panel del jurado | front 1 y 2 |
 
-## Transcripción
+## Backend: cómo corre el jurado en vivo
 
-Arrancamos con la **Web Speech API** del browser: nativa, gratis, sin backend.
-El cliente llama a `transcript.append` con cada frase. Vapi queda reservado para el
-momento en que un jurado hace la pregunta **en voz alta**, que es el que impresiona.
+Todo arranca en `convex/crons.ts`: un cron llama a `scheduler.tick` cada 5 segundos.
+El scheduler barre las sesiones `live` y, por cada asiento de agente, decide si ya
+pasó su `profile.reactEveryMs`. Si hay transcript nuevo, agenda `jury.react`. Cuando
+la sesión termina, `sessions.end` agenda `jury.score` para cada asiento.
+
+## Transcripción (STT/TTS)
+
+### STT — la voz del presentador (tu área)
+
+La **Web Speech API** del browser es nativa, gratis y sin backend. El cliente llama a
+`transcript.append` con cada frase. El backend ya trata los parciales:
+
+- `text` vacío o de < 2 chars se descarta (ruido del mic).
+- Los parciales (`final: false`) se **coalescen**: si ya existe un parcial reciente
+  de la sesión, se actualiza en vez de insertar duplicados. El transcript en vivo
+  no se llena de basura mientras el STT corrige la frase.
+
+Contrato del sink: `transcript.append({ sessionId, text, final })`. El `tMs` lo
+calcula el backend desde `session.startedAt`.
+
+### TTS — la voz del jurado (tu área)
+
+El backend **no genera audio**: cuando un jurado hace una pregunta (agente o humano),
+se encola un job en `speakJobs` y el front lo reproduce. El contrato:
+
+- `speak.pending({ sessionId })` → jobs pendientes, más viejos primero (suscripción).
+- El front (Chrome `speechSynthesis`, Linux Mint) reproduce el texto y llama
+  `speak.markDone({ speakJobId })`.
+- El agente encola su pregunta en `jury.ts` (vía `saveReaction`); los humanos la
+  encolan desde `live.askQuestion`.
+
+Vapi queda reservado para el momento en que la pregunta en voz alta necesita
+calidad de producción (el que impresiona).
 
 ## Pendiente
 
 - [ ] Sala de pitch (mic + timer + transcript en vivo)
 - [ ] Panel del jurado (reacciones, preguntas, chat de humanos)
 - [ ] Scorecard final
-- [ ] Loop que dispara `jury.react` cada `profile.reactEveryMs`
-- [ ] Cargar corpus del RAG por tag
+- [x] Loop que dispara `jury.react` cada `profile.reactEveryMs` (cron + scheduler)
+- [x] Cargar corpus del RAG por tag (`seed.seedRag`)

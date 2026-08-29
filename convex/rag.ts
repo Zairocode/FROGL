@@ -2,10 +2,7 @@ import { action, internalMutation, internalQuery } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
-import { embed } from "ai";
-
-// 1536 dims: tiene que coincidir con el vectorIndex del schema.
-export const EMBED_MODEL = "openai/text-embedding-3-small";
+import { embedText } from "./models";
 
 export const save = internalMutation({
   args: {
@@ -25,11 +22,23 @@ export const byIds = internalQuery({
   },
 });
 
+// Para el seed idempotente: existe un chunk con este source?
+export const bySource = internalQuery({
+  args: { source: v.string() },
+  handler: async (ctx, { source }) => {
+    const doc = await ctx.db
+      .query("chunks")
+      .filter((q) => q.eq(q.field("source"), source))
+      .first();
+    return doc ?? null;
+  },
+});
+
 // Carga un pedazo de conocimiento para un jurado. tag = profiles.retrievalTag
 export const ingest = action({
   args: { tag: v.string(), source: v.string(), text: v.string() },
   handler: async (ctx, { tag, source, text }) => {
-    const { embedding } = await embed({ model: EMBED_MODEL, value: text });
+    const embedding = await embedText(text, "RETRIEVAL_DOCUMENT");
     await ctx.runMutation(internal.rag.save, { tag, source, text, embedding });
   },
 });
@@ -42,7 +51,7 @@ export async function retrieve(
   limit = 4,
 ): Promise<string[]> {
   if (!queryText.trim()) return [];
-  const { embedding } = await embed({ model: EMBED_MODEL, value: queryText });
+  const embedding = await embedText(queryText, "RETRIEVAL_QUERY");
   const hits = await ctx.vectorSearch("chunks", "by_embedding", {
     vector: embedding,
     filter: (q) => q.eq("tag", tag),

@@ -1,4 +1,5 @@
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
 export const get = query({
@@ -46,6 +47,21 @@ export const start = mutation({
 
 export const end = mutation({
   args: { sessionId: v.id("sessions") },
-  handler: (ctx, { sessionId }) =>
-    ctx.db.patch(sessionId, { status: "ended", endedAt: Date.now() }),
+  handler: async (ctx, { sessionId }) => {
+    await ctx.db.patch(sessionId, { status: "ended", endedAt: Date.now() });
+
+    // Cierra el loop: despues de esto el scheduler deja de reaccionar.
+    // Ahora si, todos los agentes califican su scorecard final.
+    const seats = await ctx.db
+      .query("seats")
+      .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
+      .collect();
+    for (const seat of seats) {
+      if (seat.kind === "agent" && seat.profileId) {
+        await ctx.scheduler.runAfter(0, internal.jury.score, {
+          seatId: seat._id,
+        });
+      }
+    }
+  },
 });

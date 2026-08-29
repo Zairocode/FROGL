@@ -52,6 +52,9 @@ export default defineSchema({
     userId: v.optional(v.string()),
     joinedAtMs: v.number(),
     active: v.boolean(),
+    // Ultima vez que este asiento reacciono (solo agentes). El scheduler la
+    // usa como throttle: no dispara jury.react si reactEveryMs no paso.
+    lastReactedAtMs: v.optional(v.number()),
   }).index("by_session", ["sessionId"]),
 
   transcript: defineTable({
@@ -94,7 +97,20 @@ export default defineSchema({
     text: v.string(),
   }).index("by_session", ["sessionId"]),
 
+  // Cola de TTS: cuando un jurado (agente) hace una pregunta, el backend la
+  // encola aca. El front (Chrome speechSynthesis, Linux Mint) la consume y
+  // la marca done. El backend NO genera audio: solo orquesta.
+  speakJobs: defineTable({
+    sessionId: v.id("sessions"),
+    seatId: v.id("seats"),
+    text: v.string(),
+    kind: v.union(v.literal("reaction"), v.literal("question")),
+    tMs: v.number(),
+    done: v.boolean(),
+  }).index("by_session_pending", ["sessionId", "done"]),
+
   // Corpus del RAG. Un chunk = un tag. Si sirve para dos jurados, se duplica.
+  // Embeddings: gemini-embedding-001 recortado a 1536 (ver models.embedText).
   chunks: defineTable({
     tag: v.string(),
     text: v.string(),

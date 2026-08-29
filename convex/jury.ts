@@ -4,9 +4,9 @@ import { v } from "convex/values";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { retrieve } from "./rag";
+import { chatModel } from "./models";
 import type { Doc } from "./_generated/dataModel";
 
-const MODEL = "anthropic/claude-sonnet-5";
 const KINDS = ["hooked", "confused", "bored", "skeptical", "convinced"] as const;
 
 // ============================================================
@@ -75,6 +75,16 @@ export const saveReaction = internalMutation({
         text: question,
         answered: false,
       });
+      // La pregunta sale en voz alta: se encola para que el front (TTS)
+      // la lea con speechSynthesis. El backend solo orquesta, no genera audio.
+      await ctx.db.insert("speakJobs", {
+        sessionId: reaction.sessionId,
+        seatId: reaction.seatId,
+        text: question,
+        kind: "question",
+        tMs: reaction.tMs,
+        done: false,
+      });
     }
   },
 });
@@ -93,7 +103,7 @@ export const react = action({
     const notes = await retrieve(ctx, b.profile.retrievalTag, heard.slice(-800));
 
     const { output } = await generateText({
-      model: MODEL,
+      model: chatModel,
       system: [
         b.profile.persona,
         contextNote(b.profile, b.seat),
@@ -154,7 +164,7 @@ export const score = action({
     const heard = visible.map((l) => l.text).join(" ");
 
     const { output } = await generateText({
-      model: MODEL,
+      model: chatModel,
       system: [
         b.profile.persona,
         contextNote(b.profile, b.seat),
