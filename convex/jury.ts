@@ -24,6 +24,7 @@ type Bundle = {
   profile: Doc<"profiles">;
   lines: Doc<"transcript">[];
   samples: Doc<"delivery">[];
+  marcas: Doc<"annotations">[];
 } | null;
 
 // ============================================================
@@ -56,6 +57,11 @@ function sliceTranscript(
   }
 }
 
+function mmss(ms: number): string {
+  const t = Math.max(0, Math.floor(ms / 1000));
+  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+}
+
 function contextNote(profile: Doc<"profiles">, seat: Doc<"seats">) {
   if (profile.contextPolicy === "lateJoin")
     return `Entraste a la sala en el minuto ${(seat.joinedAtMs / 60000).toFixed(1)}. Todo lo anterior te lo perdiste y no lo podes adivinar.`;
@@ -82,7 +88,15 @@ export const bundle = internalQuery({
       .query("delivery")
       .withIndex("by_session_time", (q) => q.eq("sessionId", seat.sessionId))
       .collect();
-    return { seat, session, profile, lines, samples };
+    // Lo que el corrector marco y el expositor NO arreglo. El jurado tiene
+    // que saber con que se quedo sin corregir.
+    const marcas = (
+      await ctx.db
+        .query("annotations")
+        .withIndex("by_session_round", (q) => q.eq("sessionId", seat.sessionId))
+        .collect()
+    ).filter((a) => !a.resolved);
+    return { seat, session, profile, lines, samples, marcas };
   },
 });
 
@@ -128,7 +142,7 @@ export const react = action({
         b.profile.persona,
         contextNote(b.profile, b.seat),
         notes.length ? `Sabes esto del tema:\n- ${notes.join("\n- ")}` : "",
-        "Estas escuchando un pitch EN VIVO. Reacciona en una linea, en primera persona. Nada de resumir lo que escuchaste.",
+        "Estas escuchando un pitch EN VIVO y NO podes interrumpir. Reacciona en una linea, en primera persona, como quien le murmura algo al de al lado. Nada de resumir ni de preguntar.",
         `Hablas en ${b.profile.dialect ?? DIALECTO_POR_DEFECTO}.`,
       ]
         .filter(Boolean)
@@ -138,10 +152,8 @@ export const react = action({
         schema: z.object({
           kind: z.enum(KINDS),
           note: z.string().describe("Tu reaccion, una linea, en tu voz"),
-          question: z
-            .string()
-            .nullable()
-            .describe("Una pregunta solo si de verdad la harias ahora; si no, null"),
+          // Sin preguntas: durante el pitch nadie interrumpe. Esto es
+          // ambiente, una carita al costado que el expositor puede ignorar.
         }),
       }),
     });
@@ -152,7 +164,6 @@ export const react = action({
       tMs: nowMs,
       kind: output.kind,
       note: output.note,
-      question: output.question ?? undefined,
     });
   },
 });
@@ -166,16 +177,22 @@ export const saveScore = internalMutation({
     ),
     total: v.number(),
     verdict: v.string(),
+    funciono: v.optional(v.string()),
+    romper: v.optional(v.string()),
+    hacer: v.optional(v.string()),
+    momento: v.optional(v.string()),
   },
   handler: (ctx, args) => ctx.db.insert("scores", args),
 });
 
-// Scorecard final. El total lo calculamos nosotros con los pesos, no el modelo.
-// Scorecard final. Dos decisiones deliberadas:
-//  1. El schema fuerza UNA propiedad por criterio de la rubrica, asi el modelo
-//     no puede inventar nombres de key. Antes devolvia keys libres, no matcheaban
-//     con los pesos y el total se iba a 0 CON VEREDICTOS ELOGIOSOS.
+// Scorecard final. Cuatro decisiones deliberadas:
+//  1. El schema fuerza una propiedad por criterio, asi el modelo no puede
+//     inventar keys. Antes el total se iba a 0 con veredictos elogiosos.
 //  2. El total lo calculamos nosotros con los pesos, nunca el modelo.
+//  3. El feedback tiene forma obligatoria: que funciono, que romper, que
+//     hacer. Pedir "se amable" por prompt no alcanzaba; la estructura si.
+//  4. Cada senalamiento va anclado a un minuto, para que el expositor
+//     pueda ir a escucharse ahi en vez de adivinar a que se referian.
 export const score = action({
   args: { seatId: v.id("seats") },
   handler: async (
@@ -192,41 +209,74 @@ export const score = action({
     const heard = visible.map((l) => l.text).join(" ");
     const delivery = analyze(visible, b.samples);
 
+    // Opciones avanzadas: el usuario puede apagar criterios o cambiarles el
+    // peso. Lo que no toco queda como esta en el perfil.
+    const override = (b.session.criteria ?? []).filter(
+      (c) => c.slug === b.profile.slug,
+    );
+    const rubrica =
+      override.length > 0
+        ? b.profile.rubric
+            .map((r) => {
+              const o = override.find((c) => c.key === r.key);
+              return o ? { ...r, weight: o.weight } : r;
+            })
+            .filter((r) => r.weight > 0)
+        : b.profile.rubric;
+
     const criterio = z.object({
       score: z.number().min(0).max(10),
       why: z.string(),
     });
     const shape: Record<string, typeof criterio> = {};
-    for (const r of b.profile.rubric) shape[r.key] = criterio;
+    for (const r of rubrica) shape[r.key] = criterio;
+
+    const duracion =
+      b.session.plannedMs && b.session.endedAt && b.session.startedAt
+        ? `Tenia ${mmss(b.session.plannedMs)} y uso ${mmss(endMs)}.`
+        : "";
 
     const { output } = await generateText({
       model: await chat(MODEL),
+      temperature: 0,
       system: [
         b.profile.persona,
+        b.profile.tone ? `Como tratas al expositor: ${b.profile.tone}` : "",
         contextNote(b.profile, b.seat),
-        "Calificas SOLO lo que escuchaste. Si te perdiste parte del pitch, eso juega en contra del pitch, no a favor.",
+        b.session.topic ? `El pitch es sobre: ${b.session.topic}.` : "",
+        duracion,
+        "Calificas SOLO lo que escuchaste. Si te perdiste parte del pitch, eso juega en contra del pitch, no a favor, pero DECILO: aclara desde donde escuchaste y que no podes opinar.",
         "Como lo dijo, medido del audio y del texto (no lo interpretes, es dato duro): " +
           delivery.resumen,
-      ].join("\n\n"),
-      // Puntuar es medicion, no creatividad: sin esto la misma corrida varia
-      // +-1.5 puntos y no se puede saber si un cambio de rubrica sirvio.
-      // Las reacciones en vivo SI quedan con temperatura default: ahi la
-      // variedad es deseable.
-      temperature: 0,
+        b.marcas.length
+          ? `El corrector marco esto y sigue sin arreglarse:\n${b.marcas
+              .map((m) => `- ${m.problem}`)
+              .join("\n")}`
+          : "",
+        "El expositor vino a mejorar, no a que lo destruyan. Se exigente y concreto, nunca cruel.",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
       prompt: [
         `Pitch escuchado:\n\n"${heard}"`,
         "Califica de 0 a 10 cada criterio. Respeta la escala de cada uno:",
-        ...b.profile.rubric.map(
+        ...rubrica.map(
           (r) =>
-            `- ${r.key} (${r.label})` +
-            (r.anchor ? `\n  Escala: ${r.anchor}` : ""),
+            `- ${r.key} (${r.label})` + (r.anchor ? `\n  Escala: ${r.anchor}` : ""),
         ),
-        "Cerra con un veredicto de dos lineas.",
+        "Despues cerra con tu devolucion: una cosa que funciono, una que hay que romper, y una accion concreta para la proxima.",
       ].join("\n\n"),
       output: Output.object({
         schema: z.object({
           criterios: z.object(shape),
-          verdict: z.string(),
+          funciono: z.string().describe("Algo que SI funciono. Concreto, no de compromiso"),
+          romper: z.string().describe("Lo que mas hay que cambiar"),
+          momento: z
+            .string()
+            .nullable()
+            .describe("Minuto mm:ss donde pasa lo que senalas, si aplica"),
+          hacer: z.string().describe("Una accion concreta para la proxima"),
+          verdict: z.string().describe("Dos lineas, en tu voz"),
         }),
       }),
     });
@@ -235,15 +285,17 @@ export const score = action({
       string,
       { score: number; why: string }
     >;
-    const breakdown = b.profile.rubric.map((r) => ({
+    const breakdown = rubrica.map((r) => ({
       key: r.key,
       score: criterios[r.key].score,
       why: criterios[r.key].why,
     }));
-    const total = b.profile.rubric.reduce(
-      (sum, r) => sum + criterios[r.key].score * r.weight,
-      0,
-    );
+    // Los pesos pueden no sumar 1 si el usuario apago criterios: renormalizamos
+    // para que la nota siga siendo sobre 10 y no baje por haber sacado uno.
+    const pesoTotal = rubrica.reduce((s, r) => s + r.weight, 0) || 1;
+    const total =
+      rubrica.reduce((s, r) => s + criterios[r.key].score * r.weight, 0) /
+      pesoTotal;
 
     await ctx.runMutation(internal.jury.saveScore, {
       sessionId: b.seat.sessionId,
@@ -251,6 +303,10 @@ export const score = action({
       breakdown,
       total: Math.round(total * 10) / 10,
       verdict: output.verdict,
+      funciono: output.funciono,
+      romper: output.romper,
+      hacer: output.hacer,
+      momento: output.momento ?? undefined,
     });
     return { total: Math.round(total * 10) / 10, verdict: output.verdict };
   },

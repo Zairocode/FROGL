@@ -57,3 +57,37 @@ export const answerQuestion = mutation({
   handler: (ctx, { questionId }) =>
     ctx.db.patch(questionId, { answered: true }),
 });
+
+// La ultima revision del corrector. El front la usa para decidir si ya
+// puede mostrar el boton de "mandar al jurado".
+export const reviews = query({
+  args: { sessionId: v.id("sessions") },
+  handler: (ctx, { sessionId }) =>
+    ctx.db
+      .query("reviews")
+      .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
+      .order("desc")
+      .take(5),
+});
+
+// Las marcas de la ronda actual, sin las que el expositor ya arreglo.
+export const annotations = query({
+  args: { sessionId: v.id("sessions") },
+  handler: async (ctx, { sessionId }) => {
+    const session = await ctx.db.get(sessionId);
+    const round = session?.reviewRound ?? 1;
+    return ctx.db
+      .query("annotations")
+      .withIndex("by_session_round", (q) =>
+        q.eq("sessionId", sessionId).eq("round", round),
+      )
+      .collect();
+  },
+});
+
+// El expositor tacha una marca cuando la corrigio.
+export const resolveAnnotation = mutation({
+  args: { annotationId: v.id("annotations") },
+  handler: (ctx, { annotationId }) =>
+    ctx.db.patch(annotationId, { resolved: true }),
+});

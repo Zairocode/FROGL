@@ -21,3 +21,10 @@ export const TRANSCRIBE_MODEL = "gemini-3.5-transcribe";
 export async function transcription(id: string) {
   return google.transcription(id);
 }
+
+// Busqueda web real de Gemini. Devuelve las fuentes que uso en
+// providerMetadata.google.groundingMetadata.groundingChunks, que es de donde
+// sale el link que le mostramos al expositor para corregir.
+export function searchTool() {
+  return google.tools.googleSearch({});
+}
