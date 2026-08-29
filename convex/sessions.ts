@@ -98,3 +98,39 @@ export const end = mutation({
     }
   },
 });
+
+// Borra una sesion y todo lo que cuelga de ella (seats, transcript, reacciones,
+// preguntas, scores, delivery, mensajes, cola TTS). Utilidad de limpieza.
+export const purge = mutation({
+  args: { sessionId: v.id("sessions") },
+  handler: async (ctx, { sessionId }) => {
+    async function clear(rows: Array<{ _id: any }>) {
+      for (const r of rows) await ctx.db.delete(r._id);
+    }
+    await clear(
+      await ctx.db.query("seats").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).collect(),
+    );
+    await clear(
+      await ctx.db.query("transcript").withIndex("by_session_time", (q) => q.eq("sessionId", sessionId)).collect(),
+    );
+    await clear(
+      await ctx.db.query("reactions").withIndex("by_session_time", (q) => q.eq("sessionId", sessionId)).collect(),
+    );
+    await clear(
+      await ctx.db.query("questions").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).collect(),
+    );
+    await clear(
+      await ctx.db.query("scores").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).collect(),
+    );
+    await clear(
+      await ctx.db.query("delivery").withIndex("by_session_time", (q) => q.eq("sessionId", sessionId)).collect(),
+    );
+    await clear(
+      await ctx.db.query("messages").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).collect(),
+    );
+    await clear(
+      await ctx.db.query("speakJobs").withIndex("by_session_pending", (q) => q.eq("sessionId", sessionId)).collect(),
+    );
+    await ctx.db.delete(sessionId);
+  },
+});
