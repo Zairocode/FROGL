@@ -18,6 +18,7 @@ import type * as model from "../model.js";
 import type * as panel from "../panel.js";
 import type * as profiles from "../profiles.js";
 import type * as rag from "../rag.js";
+import type * as review from "../review.js";
 import type * as seats from "../seats.js";
 import type * as sessions from "../sessions.js";
 import type * as transcript from "../transcript.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   panel: typeof panel;
   profiles: typeof profiles;
   rag: typeof rag;
+  review: typeof review;
   seats: typeof seats;
   sessions: typeof sessions;
   transcript: typeof transcript;

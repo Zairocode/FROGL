@@ -8,6 +8,7 @@ import { LyricsTranscript } from "@/components/pitch/LyricsTranscript";
 import { MicSpectrogram } from "@/components/pitch/MicSpectrogram";
 import { PresenterCamera } from "@/components/pitch/PresenterCamera";
 import { useSpeechTranscript } from "@/hooks/useSpeechTranscript";
+import { useJuryBridge } from "@/hooks/useJuryBridge";
 import type {
   FeedItem,
   JuryExpression,
@@ -57,6 +58,9 @@ declare global {
 
 export function PitchRoom() {
   const speech = useSpeechTranscript();
+  // Lo que reaccionan los agentes en Convex entra por el mismo CustomEvent
+  // que ya usaba DemoControls, asi que el resto del componente no cambia.
+  useJuryBridge();
   const [seats, setSeats] = useState<SeatView[]>(INITIAL_SEATS);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [maxMinutes, setMaxMinutes] = useState(5);

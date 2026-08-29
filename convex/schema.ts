@@ -24,7 +24,66 @@ export default defineSchema({
     status: v.union(v.literal("lobby"), v.literal("live"), v.literal("ended")),
     startedAt: v.optional(v.number()),
     endedAt: v.optional(v.number()),
+
+    // --- fase 1: lo que se decide antes de abrir el microfono ---
+    // Sin esto el jurado evaluaba a ciegas: no sabia de que iba el pitch
+    // ni cuanto tenia que durar.
+    topic: v.optional(v.string()),
+    plannedMs: v.optional(v.number()),
+
+    // El pitch avanza por acá y no se saltea ninguna: el jurado no se abre
+    // hasta que la correccion pase.
+    phase: v.optional(
+      v.union(
+        v.literal("prep"),
+        v.literal("live"),
+        v.literal("review"),
+        v.literal("jury"),
+        v.literal("done"),
+      ),
+    ),
+
+    // --- opciones avanzadas, todas opcionales ---
+    jurySlugs: v.optional(v.array(v.string())), // que jueces entran
+    criteria: v.optional(
+      // Reemplaza pesos de la rubrica de un juez. Lo que no se nombra queda
+      // como esta en el perfil.
+      v.array(
+        v.object({ slug: v.string(), key: v.string(), weight: v.number() }),
+      ),
+    ),
+    factCheck: v.optional(v.boolean()), // verificar contra la web
+    reviewRound: v.optional(v.number()), // cuantas veces se corrigio
   }).index("by_status", ["status"]),
+
+  // Resultado de una pasada del corrector. Una fila por ronda.
+  reviews: defineTable({
+    sessionId: v.id("sessions"),
+    round: v.number(),
+    score: v.number(), // 0..10, salud del pitch
+    passed: v.boolean(), // si habilita al jurado
+    summary: v.string(),
+  }).index("by_session", ["sessionId"]),
+
+  // Lo que el corrector subraya en el transcript. el campo quote es el fragmento
+  // literal para que el front lo pueda resaltar sin adivinar posiciones.
+  annotations: defineTable({
+    sessionId: v.id("sessions"),
+    round: v.number(),
+    quote: v.string(),
+    kind: v.union(
+      v.literal("dato"), // una cifra o afirmacion que no cierra
+      v.literal("falta"), // algo que deberia estar y no esta
+      v.literal("gancho"), // no engancha
+      v.literal("claridad"), // se entiende mal
+    ),
+    severity: v.union(v.literal("alta"), v.literal("media"), v.literal("baja")),
+    problem: v.string(),
+    fix: v.string(),
+    sourceUrl: v.optional(v.string()),
+    sourceTitle: v.optional(v.string()),
+    resolved: v.boolean(),
+  }).index("by_session_round", ["sessionId", "round"]),
 
   // Perfiles de jurado. Se editan en runtime, sin deploy: este es el panel de control.
   profiles: defineTable({
@@ -32,6 +91,15 @@ export default defineSchema({
     name: v.string(),
     emoji: v.string(),
     color: v.optional(v.string()),
+    // Como suena. Estaba hardcodeado "rioplatense" en el prompt y salian
+    // todos hablando igual. Se edita por jurado desde el dashboard.
+    dialect: v.optional(v.string()),
+    // Como trata al expositor. Las personas estaban escritas para ser
+    // filosas y nada les pedia ser utiles, asi que salian solo groseras.
+    tone: v.optional(v.string()),
+    // Solo el tecnico contrasta contra la web. Los demas opinan de lo que
+    // escucharon: buscar por todos multiplica costo y tiempo sin sumar.
+    verifiesFacts: v.optional(v.boolean()),
     persona: v.string(),
     rubric: v.array(
       v.object({
@@ -95,6 +163,12 @@ export default defineSchema({
     ),
     total: v.number(),
     verdict: v.string(),
+    // Forma obligatoria del feedback. Pedir "se amable" por prompt no
+    // alcanzaba: la estructura es la que obliga a que sea util.
+    funciono: v.optional(v.string()),
+    romper: v.optional(v.string()),
+    hacer: v.optional(v.string()),
+    momento: v.optional(v.string()), // mm:ss del punto que senala
   }).index("by_session", ["sessionId"]),
 
   // Muestras acusticas que manda el browser cada ~3s con Web Audio.

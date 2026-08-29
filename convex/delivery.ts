@@ -20,7 +20,9 @@ export const sample = mutation({
     // Esto es telemetria: si todavia no arranco, se descarta en silencio.
     // A diferencia de transcript.append, no tira: no queremos que una muestra
     // temprana rompa el loop de captura del browser.
-    if (!session?.startedAt) return;
+    // Tambien frenamos si ya cerro: una captura huerfana seguia escribiendo
+    // muestras en una sesion terminada.
+    if (!session?.startedAt || session.status !== "live") return;
     await ctx.db.insert("delivery", {
       sessionId,
       tMs: Date.now() - session.startedAt,

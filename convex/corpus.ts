@@ -1,5 +1,5 @@
-import { action } from "./_generated/server";
-import { api } from "./_generated/api";
+import { action, internalMutation } from "./_generated/server";
+import { api, internal } from "./_generated/api";
 
 // ============================================================
 //  MOTOR DE ERRORES COMUNES = el corpus del RAG.
@@ -42,12 +42,41 @@ export const ERRORES: { tag: string; text: string }[] = [
   { tag: "actitud", text: "Se disculpa por el estado del producto antes de que nadie pregunte. Nadie te va a defender si vos mismo abris con una excusa." },
   { tag: "actitud", text: "Termina sin decir que necesita. Un pitch sin pedido concreto es una charla informativa." },
   { tag: "actitud", text: "Conviccion no es volumen. Alguien tranquilo que responde todo con datos gana a alguien que grita entusiasmo." },
+  // --- Lucia Ferrer (comercial) ---
+  { tag: "comercial", text: "Dice que monetiza mas adelante. Eso no es una etapa, es no haber pensado como se gana plata con esto." },
+  { tag: "comercial", text: "No sabe su costo de adquisicion. Sin ese numero no sabe si crecer le conviene o lo funde mas rapido." },
+  { tag: "comercial", text: "El precio esta elegido a ojo. Nunca le pregunto a nadie cuanto pagaria, y se nota en que es un numero redondo." },
+  { tag: "comercial", text: "Confunde usuarios con clientes. Miles de usuarios gratis no validan que alguien pague." },
+  { tag: "comercial", text: "El ciclo de venta de ese sector es de meses y el plan asume que cierran en semanas." },
+  { tag: "comercial", text: "No dice quien firma el cheque adentro de la empresa cliente. Quien lo usa y quien lo aprueba casi nunca son la misma persona." },
+  { tag: "comercial", text: "No hay razon para que el cliente cambie hoy. Sin urgencia, la venta se posterga para siempre." },
+
+  // --- Sandra Rios (usuario final) ---
+  { tag: "usuario", text: "Usa siglas y jerga sin traducir. Si el que escucha tiene que preguntar que significa, ya lo perdio." },
+  { tag: "usuario", text: "Explica la tecnologia en vez de que gana la persona que lo usa." },
+  { tag: "usuario", text: "No dice en que momento del dia se usaria. Sin eso nadie se imagina usandolo." },
+  { tag: "usuario", text: "Pide cambiar como trabaja la gente hoy sin decir que gana a cambio." },
+  { tag: "usuario", text: "Asume un problema que la persona no siente como problema." },
+  { tag: "usuario", text: "La demo necesita que alguien la explique. Si hace falta un guia, en la vida real no lo van a usar." },
 ];
 
-// Carga todo el corpus. Idempotente NO: corrila una vez por deployment.
+// Vacia el corpus para que load() sea idempotente. Sin esto, correr load
+// dos veces duplicaba cada chunk y el vector search gastaba sus slots
+// trayendo la misma frase repetida.
+export const clear = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const todos = await ctx.db.query("chunks").collect();
+    for (const c of todos) await ctx.db.delete(c._id);
+    return todos.length;
+  },
+});
+
+// Carga todo el corpus. Idempotente: borra y vuelve a sembrar.
 export const load = action({
   args: {},
   handler: async (ctx): Promise<number> => {
+    await ctx.runMutation(internal.corpus.clear, {});
     for (const e of ERRORES) {
       await ctx.runAction(api.rag.ingest, {
         tag: e.tag,
