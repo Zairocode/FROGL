@@ -10,6 +10,7 @@ import { JurorAvatar } from "./JurorAvatar";
 import { JuryProjection } from "./LiveCamera";
 import { useAccount } from "@/lib/account-context";
 import { useSession } from "@/lib/session-context";
+import { useSpokenAudio } from "@/lib/useSpokenAudio";
 import { colorForName } from "@/lib/chat-store";
 import { isPitchType, PITCH_TYPE_META } from "@/convex/pitchTypes";
 import { PitchTypePill } from "./PitchTypePicker";
@@ -18,6 +19,9 @@ export function JuryRoom() {
   const { account } = useAccount();
   const { sessionId, session } = useSession();
   const [seatId, setSeatId] = useState<string | null>(null);
+
+  // Los agentes del panel responden en voz alta con su voz de Eleven Labs.
+  useSpokenAudio(sessionId);
   const joinHuman = useMutation(api.seats.joinHuman);
   const leave = useMutation(api.seats.leave);
 

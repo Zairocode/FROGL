@@ -7,7 +7,7 @@ import { retrieve } from "./rag";
 import { webSearch } from "./tavily";
 import { pitchBriefing } from "./pitchTypes";
 import { chat } from "./model";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { analyze } from "./delivery";
 
 import { CHAT_MODEL } from "./model";
@@ -108,6 +108,27 @@ export const saveReaction = internalMutation({
         answered: false,
       });
     }
+
+    // Cola de voz: cada texto que el jurado suelta (reaccion y/o pregunta)
+    // se encola para que speak.render le genere el audio con SU voz.
+    const jobIds: Id<"speakJobs">[] = [];
+    const enqueue = (text: string, kind: "reaction" | "question") =>
+      ctx.runMutation(internal.speak.addJob, {
+        sessionId: reaction.sessionId,
+        seatId: reaction.seatId,
+        tMs: reaction.tMs,
+        text,
+        kind,
+      });
+    if (reaction.note) {
+      const id = await enqueue(reaction.note, "reaction");
+      if (id) jobIds.push(id);
+    }
+    if (question) {
+      const id = await enqueue(question, "question");
+      if (id) jobIds.push(id);
+    }
+    return { jobIds };
   },
 });
 
@@ -152,7 +173,7 @@ export const react = action({
       }),
     });
 
-    await ctx.runMutation(internal.jury.saveReaction, {
+    const { jobIds } = await ctx.runMutation(internal.jury.saveReaction, {
       sessionId: b.seat.sessionId,
       seatId,
       tMs: nowMs,
@@ -160,6 +181,11 @@ export const react = action({
       note: output.note,
       question: output.question ?? undefined,
     });
+    // Genera el audio de cada texto con la voz del jurado. Corre en segundo
+    // plano: la burbuja aparece al toque, el audio llega un momento despues.
+    for (const jobId of jobIds) {
+      await ctx.scheduler.runAfter(0, internal.speak.render, { jobId });
+    }
   },
 });
 

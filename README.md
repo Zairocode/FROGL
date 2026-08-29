@@ -9,7 +9,7 @@ reaccionan al lado de los agentes.
 
 ## La idea de diseño
 
-**No hay cuatro agentes. Hay uno.** Lo que cambia entre jurados son tres perillas
+**No hay cuatro agentes. Hay uno.** Lo que cambia entre jurados son cuatro perillas
 guardadas en la tabla `profiles`, editables sin deploy:
 
 | Perilla | Qué cambia |
@@ -17,6 +17,7 @@ guardadas en la tabla `profiles`, editables sin deploy:
 | `persona` | cómo habla y qué le importa |
 | `retrievalTag` | qué corpus ve en el RAG |
 | `contextPolicy` | **qué porción del pitch llega a ver** |
+| `voiceId` | la voz de Eleven Labs con la que suena (vacío = no suena) |
 
 La tercera es la que hace el trabajo pesado:
 
@@ -167,8 +168,43 @@ Solo Chrome y Edge. Firefox y Safari no tienen Web Speech API.
 ## Transcripción
 
 Arrancamos con la **Web Speech API** del browser: nativa, gratis, sin backend.
-El cliente llama a `transcript.append` con cada frase. Vapi queda reservado para el
-momento en que un jurado hace la pregunta **en voz alta**, que es el que impresiona.
+El cliente llama a `transcript.append` con cada frase. El momento que impresiona —
+la pregunta **en voz alta** — lo cubre la voz de Eleven Labs de cada jurado
+(ver la sección de abajo).
+
+## Voz de los jurados (Eleven Labs)
+
+Cada jurado responde **en voz alta con su propia voz**. Cuando un jurado reacciona
+o pregunta, el backend (`convex/speak.ts`) genera el audio con la API de Eleven
+Labs usando la voz configurada en `profiles.voiceId` y lo guarda en Convex file
+storage. El front (`lib/useSpokenAudio.ts`) reproduce cada audio en orden.
+
+### Configurar las voces (una vez)
+
+El plan gratuito de Eleven Labs **no permite usar voces de librería por API**, así
+que cada voz tiene que ser **tuya** (Voice Design o Instant Voice Clone en
+elevenlabs.io):
+
+1. Creá una voz por jurado, acorde a su personalidad
+   (Elena: profesional/femenina · Kevin: joven/enérgica · Marco: cálida/directa ·
+   Rosa: cálida/presente).
+2. Copiá el ID de cada voz (la URL de la voz es
+   `https://elevenlabs.io/voice-lab/<id>`).
+3. Pegalo en `voiceId` de cada jurado. En el dashboard de Convex (tabla
+   `profiles`) se edita en runtime, sin redeploy; también está la columna en
+   `convex/profiles.ts`.
+
+Env vars que usa el backend (solo server-side, en Convex → Settings → Environment
+Variables, y en `.env.local` para dev local):
+
+```
+ELEVENLABS_API_KEY=...
+# opcional; default: eleven_multilingual_v2
+ELEVENLABS_MODEL=...
+```
+
+Sin `voiceId` configurado (o si la API falla) el jurado reacciona por texto igual:
+la burbuja aparece, solo no suena.
 
 ## Pendiente
 

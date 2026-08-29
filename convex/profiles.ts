@@ -7,7 +7,23 @@ import { mutation, query } from "./_generated/server";
 //    persona        -> como habla y que le importa
 //    retrievalTag   -> que corpus ve en el RAG
 //    contextPolicy  -> QUE PORCION DEL PITCH LLEGA A VER
+//    voiceId        -> SU voz en Eleven Labs (ver abajo)
 // ============================================================
+
+//  VOZ DE ELEVEN LABS (voiceId): cada jurado suena con SU voz.
+//  Vacio ("") = sin voz: reacciona por texto igual, pero no suena.
+//  Para activarlo:
+//   1. Creá la voz en Eleven Labs (Voice Design o Instant Voice Clone)
+//      que quieras para ese jurado. El plan gratuito NO deja usar voces
+//      de libreria por API: necesitas una voz propia.
+//   2. Copiá su ID (la URL de la voz: https://elevenlabs.io/voice-lab/<id>).
+//   3. Pegalo aca en voiceId, o en runtime en el dashboard de Convex
+//      (tabla profiles -> voiceId) sin redeploy.
+//  Personalidad sugerida por jurado para elegir la voz:
+//    - tecnico  (Dra. Elena): femenina, profesional, autoridad serena.
+//    - tiktok   (Kevin):      masculina joven, enérgica, rápida.
+//    - recien-llegado (Marco): masculina cálida y directa, sin rodeos.
+//    - actitud  (Rosa):       femenina cálida y presente, que transmite segura.
 
 export const JURY = [
   {
@@ -32,6 +48,7 @@ export const JURY = [
     verifiesFacts: true, // Dra. Elena verifica afirmaciones dudosas en internet (Tavily)
     contextPolicy: "full" as const,
     reactEveryMs: 25000,
+    voiceId: "",
   },
   {
     slug: "tiktok",
@@ -54,6 +71,7 @@ export const JURY = [
     contextPolicy: "window" as const,
     windowMs: 20000, // literalmente no recuerda lo de hace medio minuto
     reactEveryMs: 12000,
+    voiceId: "",
   },
   {
     slug: "recien-llegado",
@@ -75,6 +93,7 @@ export const JURY = [
     contextPolicy: "lateJoin" as const,
     defaultJoinAtMs: 90_000, // entra al minuto y medio
     reactEveryMs: 20000,
+    voiceId: "",
   },
   {
     slug: "actitud",
@@ -129,6 +148,7 @@ export const JURY = [
     retrievalTag: "actitud",
     contextPolicy: "full" as const,
     reactEveryMs: 30000,
+    voiceId: "",
   },
 ];
 

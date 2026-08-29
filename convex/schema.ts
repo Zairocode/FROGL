@@ -66,6 +66,11 @@ export default defineSchema({
     verifiesFacts: v.optional(v.boolean()),
     // Refinamiento de voz, editable en runtime. Se preserva por compatibilidad.
     tone: v.optional(v.string()),
+    // Voz de Eleven Labs para ESTE jurado (TTS del backend). Vacio = sin voz:
+    // la burbuja de texto aparece igual, pero no suena. Se edita en runtime en
+    // el dashboard de Convex (tabla profiles -> voiceId). El ID sale de la
+    // URL de la voz en Eleven Labs: https://elevenlabs.io/voice-lab/<voice_id>
+    voiceId: v.optional(v.string()),
     contextPolicy,
     windowMs: v.optional(v.number()),
     defaultJoinAtMs: v.optional(v.number()),
@@ -147,9 +152,11 @@ export default defineSchema({
     cue: v.optional(v.string()), // chat | volume | posture | rating
   }).index("by_session", ["sessionId"]),
 
-  // Cola de TTS: cuando un jurado (agente) hace una pregunta, el backend la
-  // encola aca. El front (Chrome speechSynthesis, Linux Mint) la consume y
-  // la marca done. El backend NO genera audio: solo orquesta.
+  // Cola de TTS: cuando un jurado (agente) reacciona o pregunta, el backend
+  // encola un job aca, le genera el audio con Eleven Labs (con la voz propia
+  // de ese jurado) y lo guarda en file storage. El front consume pending,
+  // reproduce y lo marca done. Sin audioStorageId el job se descarto (no hay
+  // voz configurada o fallo de TTS) y se drena solo con done=true.
   speakJobs: defineTable({
     sessionId: v.id("sessions"),
     seatId: v.id("seats"),
@@ -157,6 +164,7 @@ export default defineSchema({
     kind: v.union(v.literal("reaction"), v.literal("question")),
     tMs: v.number(),
     done: v.boolean(),
+    audioStorageId: v.optional(v.string()), // Id<"_storage"> del mp3 generado
   }).index("by_session_pending", ["sessionId", "done"]),
 
   // Corpus del RAG. Un chunk = un tag. Si sirve para dos jurados, se duplica.

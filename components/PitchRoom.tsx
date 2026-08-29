@@ -12,6 +12,7 @@ import { useJuryChat } from "@/lib/chat-context";
 import { latestByJuror } from "@/lib/chat-store";
 import { useSession } from "@/lib/session-context";
 import { usePitchCapture } from "@/lib/usePitchCapture";
+import { useSpokenAudio } from "@/lib/useSpokenAudio";
 import { colorForName } from "@/lib/chat-store";
 import { PitchTypePicker, PitchTypePill } from "./PitchTypePicker";
 import { isPitchType, PITCH_TYPE_META, type PitchType } from "@/convex/pitchTypes";
@@ -35,6 +36,10 @@ export function PitchRoom() {
   const { messages } = useJuryChat();
   const [elapsed, setElapsed] = useState(0);
   const [pitchType, setPitchType] = useState<PitchType | null>(null);
+
+  // El jurado responde en voz alta: cada reaccion/pregunta suena con la voz
+  // propia de su perfil (Eleven Labs). Sin voiceId configurado, no suena.
+  useSpokenAudio(sessionId);
 
   const seats = useQuery(api.seats.list, sessionId ? { sessionId } : "skip");
   const transcript = useQuery(
