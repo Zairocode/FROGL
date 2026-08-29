@@ -96,6 +96,21 @@ npx convex run corpus:load
 | `convex/live.ts` | queries que consume el front | back 1 |
 | `app/` | sala del pitch + panel del jurado | front 1 y 2 |
 
+## Backend NestJS (`backend/`)
+
+Servicio auxiliar (esqueleto NestJS v11) para cuando haga falta una API propia
+fuera de Convex. Hoy expone solo el healthcheck:
+
+```bash
+cd backend
+npm install
+npm run start:dev   # GET http://localhost:3000/health → { "status": "ok" }
+```
+
+Producción apunta a Railway + Docker (`backend/Dockerfile`, `backend/railway.toml`).
+La arquitectura principal de FROGL es Convex; este servicio es independiente y
+opcional.
+
 ## Afinar las rúbricas
 
 ```bash
