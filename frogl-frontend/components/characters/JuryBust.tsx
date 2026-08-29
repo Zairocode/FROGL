@@ -10,6 +10,8 @@ import type { JuryExpression, JurySlug } from "@/lib/transcript-types";
 
 type Props = {
   slug: JurySlug;
+  /** Color del perfil, para jueces que no tienen paleta dibujada a mano. */
+  accent?: string;
   expression?: JuryExpression;
   size?: number;
 };
@@ -25,7 +27,7 @@ type Colors = {
   pupil: string;
 };
 
-const COLORS: Record<JurySlug, Colors> = {
+const COLORS: Record<string, Colors> = {
   tiktok: {
     shirt: "#ff8fab",
     collar: "#a3a3a2",
@@ -68,9 +70,12 @@ const COLORS: Record<JurySlug, Colors> = {
   },
 };
 
-export function JuryBust({ slug, size = 160 }: Props) {
+export function JuryBust({ slug, size = 160, accent }: Props) {
   const uid = useId().replace(/:/g, "");
-  const c = COLORS[slug];
+  // Los jueces nuevos (comercial, usuario…) no tienen paleta propia:
+  // heredan la del tecnico con la camisa del color de su perfil.
+  const base = COLORS[slug] ?? COLORS.tecnico;
+  const c = COLORS[slug] ? base : { ...base, shirt: accent ?? base.shirt };
   const clipId = `clip-Chr_5-${uid}`;
 
   return (

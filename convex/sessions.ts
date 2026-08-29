@@ -48,7 +48,7 @@ async function sentarJurado(
       sessionId,
       kind: "agent",
       profileId: profile._id,
-      displayName: `${profile.emoji} ${profile.name}`,
+      displayName: profile.name,
       color: profile.color,
       joinedAtMs: profile.defaultJoinAtMs ?? 0,
       active: true,
@@ -127,7 +127,11 @@ export const start = mutation({
       const profile = await ctx.db.get(seat.profileId);
       if (!profile) continue;
       // Nadie reacciona antes de haber llegado: Marco entra a los 90s.
-      const firstTick = Math.max(profile.reactEveryMs, seat.joinedAtMs);
+      const firstTick = Math.max(
+        profile.reactEveryMs,
+        seat.joinedAtMs,
+        profile.graceMs ?? 0,
+      );
       await ctx.scheduler.runAfter(firstTick, internal.loop.tick, {
         seatId: seat._id,
       });

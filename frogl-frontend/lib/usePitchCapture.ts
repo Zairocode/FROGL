@@ -47,6 +47,9 @@ export function usePitchCapture(
   // Clips transcritos. Si queda en 0 con el nivel moviendose, el problema
   // esta en la transcripcion y no en el microfono.
   const [heard, setHeard] = useState(0);
+  // Clips que fallaron incluso con reintentos: visible para que el usuario
+  // sepa que perdio audio en vez de creer que "no jala".
+  const [lost, setLost] = useState(0);
   const [paused, setPaused] = useState(false);
 
   const st = useRef({
@@ -186,14 +189,40 @@ export function usePitchCapture(
           try {
             const bytes = await new Blob(partes).arrayBuffer();
             const audio = await ctx.decodeAudioData(bytes);
-            const wav = encodeWav(audio.getChannelData(0), audio.sampleRate);
+            const wav = toBase64(
+              encodeWav(audio.getChannelData(0), audio.sampleRate),
+            );
             setInterim("transcribiendo…");
-            const texto = await ingest({ sessionId: sid, audio: toBase64(wav) });
+            // El gateway devuelve 429 cuando los clips llegan seguidos. El
+            // WAV ya esta en memoria: reintentar es gratis comparado con
+            // perder seis segundos de pitch. Antes un fallo descartaba el
+            // clip en silencio y "la transcripcion no jalaba".
+            let texto: string | null = null;
+            let ok = false;
+            for (let intento = 0; intento < 3; intento++) {
+              try {
+                texto = await ingest({ sessionId: sid, audio: wav });
+                ok = true;
+                break;
+              } catch (err) {
+                console.warn(
+                  `[FROGL] clip fallo (intento ${intento + 1}/3):`,
+                  err,
+                );
+                if (intento < 2)
+                  await new Promise((r) => setTimeout(r, 1500 * (intento + 1)));
+              }
+            }
             setInterim("");
-            if (texto) setHeard((n) => n + 1);
+            if (ok) {
+              if (texto) setHeard((n) => n + 1);
+            } else {
+              setLost((n) => n + 1);
+            }
           } catch (err) {
-            console.warn("[FROGL] no se pudo transcribir el clip:", err);
+            console.warn("[FROGL] no se pudo decodificar el clip:", err);
             setInterim("");
+            setLost((n) => n + 1);
           } finally {
             s.pending--;
             liberar(); // el ultimo clip en salir apaga la luz
@@ -243,5 +272,5 @@ export function usePitchCapture(
   // Suelta el microfono si el componente se desmonta a mitad del pitch.
   useEffect(() => stop, [stop]);
 
-  return { recording, paused, interim, level, error, heard, start, pause, resume, stop };
+  return { recording, paused, interim, level, error, heard, lost, start, pause, resume, stop };
 }

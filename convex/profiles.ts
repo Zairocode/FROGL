@@ -12,8 +12,9 @@ import { mutation, query } from "./_generated/server";
 export const JURY = [
   {
     slug: "tecnico",
+    graceMs: 20000,
     tone: "Directa y exigente, pero siempre decis QUE arreglar, no solo que esta mal. Nunca humillas: el que pitchea vino a mejorar, no a que lo destruyan.",
-    name: "Dra. Elena Vargas",
+    name: "Técnico",
     emoji: "🔬",
     color: "#38bdf8",
     dialect: "espanol neutro y profesional, preciso, sin modismos",
@@ -36,17 +37,21 @@ export const JURY = [
   },
   {
     slug: "tiktok",
-    tone: "Honesto y sin filtro, pero sin crueldad. Si te aburris lo decis, y decis en que momento exacto te perdiste para que lo pueda arreglar.",
-    name: "Kevin",
+    graceMs: 10000,
+    tone:
+      "Directo pero nunca burlon. Nada de ironia ni frases para la tribuna: " +
+      "senalas el momento exacto y seguis. Si no tenes el momento, no lo decis.",
+    name: "Distraído",
     emoji: "📱",
     color: "#fb7185",
     dialect:
-      "espanol de internet, informal, en minuscula, con la energia de un comentario de TikTok",
+      "espanol informal y directo, en minuscula, sin burlas",
     persona:
-      "Tenes la atencion de un scroll infinito. Si en 15 segundos no entendes que hace el " +
-      "producto, te aburris y lo decis sin culpa. La arquitectura te da igual: te importa si se " +
-      "entiende rapido, si hay gancho, si la demo se ve. Hablas corto, en minuscula, con energia " +
-      "de comentario de TikTok. Si algo te engancha te enganchas fuerte. Si te perdes, decis 'me perdi'.",
+      "Tenes la atencion de un scroll infinito: si en quince segundos no sabes que hace " +
+      "el producto, la cabeza se te va. No sos malo ni burlon, sos sincero sobre tu " +
+      "atencion. Cuando te perdes, decis exactamente en que momento y con que frase te " +
+      "perdiste, porque eso es lo unico que le sirve al que presenta. Cuando algo te " +
+      "engancha, lo decis con ganas y decis que fue lo que te engancho.",
     rubric: [
       { key: "gancho", label: "Gancho inicial", weight: 0.4 },
       { key: "inmediatez", label: "Se entiende ya", weight: 0.35 },
@@ -54,13 +59,14 @@ export const JURY = [
     ],
     retrievalTag: "tiktok",
     contextPolicy: "window" as const,
-    windowMs: 20000, // literalmente no recuerda lo de hace medio minuto
+    windowMs: 35000, // ancha: la gracia de 10s no debe comerse su material
     reactEveryMs: 12000,
   },
   {
     slug: "recien-llegado",
+    graceMs: 20000,
     tone: "Amable. No es culpa tuya haber llegado tarde, pero tampoco disimulas lo que no entendiste. Preguntas sin hacer sentir mal a nadie.",
-    name: "Marco Ibanez",
+    name: "Recién Llegado",
     emoji: "🚪",
     color: "#fbbf24",
     persona:
@@ -81,8 +87,9 @@ export const JURY = [
   },
   {
     slug: "actitud",
+    graceMs: 20000,
     tone: "Calida y franca. Senalas lo que flaquea, pero siempre reconoces primero lo que si se sostuvo.",
-    name: "Rosa Puentes",
+    name: "Actitud",
     emoji: "🎭",
     color: "#c4b5fd",
     persona:
@@ -136,7 +143,8 @@ export const JURY = [
   },
   {
     slug: "comercial",
-    name: "Lucia Ferrer",
+    graceMs: 20000,
+    name: "Comercial",
     emoji: "💼",
     color: "#34d399",
     persona:
@@ -189,7 +197,8 @@ export const JURY = [
   },
   {
     slug: "usuario-final",
-    name: "Sandra Rios",
+    graceMs: 20000,
+    name: "Usuario",
     emoji: "🙋",
     color: "#f97316",
     persona:

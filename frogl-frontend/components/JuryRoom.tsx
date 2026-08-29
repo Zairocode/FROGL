@@ -162,7 +162,7 @@ export function JuryRoom() {
                 <div key={j.seatId} className="flex items-center gap-2">
                   <JurorAvatar name={j.name} color={j.color} size={34} />
                   <span className="text-sm" style={{ color: j.color }}>
-                    {j.emoji} {j.name}
+                    {j.name}
                   </span>
                 </div>
               ))}

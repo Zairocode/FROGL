@@ -12,9 +12,11 @@ import { useCurrentSession, usePanel, useQuestions } from "@/lib/frogl";
 //  Ademas lee las preguntas en voz alta con speechSynthesis, que es nativo.
 // ============================================================
 
-const SLUGS: JurySlug[] = ["tecnico", "tiktok", "recien-llegado", "actitud"];
+// Cualquier slug no vacio vale: los jueces viven en la tabla profiles y
+// pueden ser 6 hoy y 8 maniana. La lista fija de 4 era la razon de que
+// Comercial y Usuario nunca aparecieran en el panel.
 const esSlug = (v: unknown): v is JurySlug =>
-  typeof v === "string" && (SLUGS as string[]).includes(v);
+  typeof v === "string" && v.length > 0;
 
 export function useJuryBridge(speakQuestions = true) {
   const session = useCurrentSession();

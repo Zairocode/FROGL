@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { BehaviorMeter } from "@/components/pitch/BehaviorMeter";
 import { DemoControls } from "@/components/pitch/DemoControls";
 import { JuryStrip } from "@/components/pitch/JuryStrip";
 import { LiveFeed } from "@/components/pitch/LiveFeed";
@@ -9,6 +10,7 @@ import { MicSpectrogram } from "@/components/pitch/MicSpectrogram";
 import { PresenterCamera } from "@/components/pitch/PresenterCamera";
 import { useSpeechTranscript } from "@/hooks/useSpeechTranscript";
 import { useJuryBridge } from "@/hooks/useJuryBridge";
+import { useCurrentSession, usePanel } from "@/lib/frogl";
 import type {
   FeedItem,
   JuryExpression,
@@ -16,32 +18,9 @@ import type {
   SeatView,
 } from "@/lib/transcript-types";
 
-const INITIAL_SEATS: SeatView[] = [
-  {
-    slug: "tecnico",
-    kind: "agent",
-    displayName: "Dra. Elena Vargas",
-    expression: "idle",
-  },
-  {
-    slug: "tiktok",
-    kind: "agent",
-    displayName: "Kevin",
-    expression: "idle",
-  },
-  {
-    slug: "recien-llegado",
-    kind: "agent",
-    displayName: "Marco Ibáñez",
-    expression: "idle",
-  },
-  {
-    slug: "actitud",
-    kind: "agent",
-    displayName: "Rosa Puentes",
-    expression: "idle",
-  },
-];
+// Los asientos salen de Convex, no de una lista fija. Antes habia
+// INITIAL_SEATS con 4 jurados hardcodeados: elegias 6 en /preparar y
+// aca aparecian 4 igual, con los nombres viejos.
 
 type JuryEventDetail = {
   slug: JurySlug;
@@ -56,14 +35,46 @@ declare global {
   }
 }
 
+type Overlay = {
+  expression: JuryExpression;
+  lastNote?: string;
+  lastQuestion?: string;
+};
+
 export function PitchRoom() {
   const speech = useSpeechTranscript();
+  const session = useCurrentSession();
   // Lo que reaccionan los agentes en Convex entra por el mismo CustomEvent
-  // que ya usaba DemoControls, asi que el resto del componente no cambia.
+  // que usa DemoControls, asi que el resto del componente no cambia.
   useJuryBridge();
-  const [seats, setSeats] = useState<SeatView[]>(INITIAL_SEATS);
+
+  const panel = usePanel(session?._id ?? null);
+  const [overlay, setOverlay] = useState<Record<string, Overlay>>({});
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [maxMinutes, setMaxMinutes] = useState(5);
+  const [demo, setDemo] = useState(false);
+
+  // El panel de simulacion es una herramienta de desarrollo: solo con ?demo=1.
+  useEffect(() => {
+    setDemo(window.location.search.includes("demo=1"));
+  }, []);
+
+  const seats = useMemo<SeatView[]>(
+    () =>
+      panel.map((j) => {
+        const o = j.slug ? overlay[j.slug] : undefined;
+        return {
+          slug: (j.slug ?? j.seatId) as JurySlug,
+          kind: j.kind,
+          displayName: j.name,
+          color: j.color,
+          expression: o?.expression ?? "idle",
+          lastNote: o?.lastNote,
+          lastQuestion: o?.lastQuestion,
+        };
+      }),
+    [panel, overlay],
+  );
 
   const tMs = speech.elapsedMs;
 
@@ -74,16 +85,17 @@ export function PitchRoom() {
     }
   }, [speech.listening, speech.elapsedMs, maxMinutes, speech.stop]);
 
+  const nombreDe = useCallback(
+    (slug: string) => seats.find((s) => s.slug === slug)?.displayName ?? slug,
+    [seats],
+  );
+
   const setSeatExpression = useCallback(
     (slug: JurySlug, expression: JuryExpression, note?: string) => {
-      let displayName: string = slug;
-      setSeats((prev) =>
-        prev.map((s) => {
-          if (s.slug !== slug) return s;
-          displayName = s.displayName;
-          return { ...s, expression, lastNote: note ?? s.lastNote };
-        }),
-      );
+      setOverlay((prev) => ({
+        ...prev,
+        [slug]: { ...prev[slug], expression, lastNote: note ?? prev[slug]?.lastNote },
+      }));
       if (note) {
         setFeed((f) => [
           ...f,
@@ -91,7 +103,7 @@ export function PitchRoom() {
             id: `${Date.now()}-r`,
             tMs,
             seatSlug: slug,
-            displayName,
+            displayName: nombreDe(slug),
             type: "reaction",
             expression,
             text: note,
@@ -99,55 +111,33 @@ export function PitchRoom() {
         ]);
       }
     },
-    [tMs],
+    [tMs, nombreDe],
   );
 
   const pushQuestion = useCallback(
     (slug: JurySlug, text: string) => {
-      let displayName: string = slug;
-      setSeats((prev) =>
-        prev.map((s) => {
-          if (s.slug !== slug) return s;
-          displayName = s.displayName;
-          return { ...s, lastQuestion: text };
-        }),
-      );
+      setOverlay((prev) => ({
+        ...prev,
+        [slug]: {
+          ...prev[slug],
+          expression: prev[slug]?.expression ?? "idle",
+          lastQuestion: text,
+        },
+      }));
       setFeed((f) => [
         ...f,
         {
           id: `${Date.now()}-q`,
           tMs,
           seatSlug: slug,
-          displayName,
+          displayName: nombreDe(slug),
           type: "question",
           text,
         },
       ]);
     },
-    [tMs],
+    [tMs, nombreDe],
   );
-
-  const toggleHuman = useCallback((slug: JurySlug) => {
-    setSeats((prev) =>
-      prev.map((s) => {
-        if (s.slug !== slug) return s;
-        if (s.kind === "human") {
-          return {
-            ...s,
-            kind: "agent",
-            displayName:
-              slug === "actitud" ? "Rosa Puentes" : s.displayName,
-          };
-        }
-        return {
-          ...s,
-          kind: "human",
-          displayName: "vos (humano)",
-          expression: "idle",
-        };
-      }),
-    );
-  }, []);
 
   useEffect(() => {
     const handler = (ev: CustomEvent<JuryEventDetail>) => {
@@ -159,9 +149,6 @@ export function PitchRoom() {
     return () => window.removeEventListener("frogl:jury", handler);
   }, [pushQuestion, setSeatExpression]);
 
-  const humanSlug =
-    seats.find((s) => s.kind === "human")?.slug ?? null;
-
   return (
     <div className="flex h-dvh max-h-dvh flex-col overflow-hidden bg-bg text-fg">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 px-4 py-2.5 sm:px-5">
@@ -170,7 +157,7 @@ export function PitchRoom() {
             FROGL · sala de pitch
           </p>
           <h1 className="truncate text-base font-semibold tracking-tight">
-            Maqueta en vivo
+            {session?.topic ?? session?.title ?? "Sala de pitch"}
           </h1>
         </div>
         <button
@@ -223,8 +210,8 @@ export function PitchRoom() {
           </div>
         </section>
 
-        {/* Transcript + feed (~20% en desktop) */}
-        <section className="flex min-h-0 flex-1 flex-col border-t border-border/60 lg:w-[20%] lg:max-w-[20%] lg:flex-none lg:border-l lg:border-t-0">
+        {/* Transcript + medidor + feed */}
+        <section className="flex min-h-0 flex-1 flex-col border-t border-border/60 lg:w-[22%] lg:max-w-[22%] lg:flex-none lg:border-l lg:border-t-0">
           <div className="min-h-0 flex-[1.6]">
             <LyricsTranscript
               segments={speech.segments}
@@ -232,7 +219,11 @@ export function PitchRoom() {
               listening={speech.listening}
             />
           </div>
-          <div className="flex min-h-0 max-h-[28%] flex-col sm:max-h-[32%]">
+          <BehaviorMeter
+            sessionId={session?._id ?? null}
+            listening={speech.listening}
+          />
+          <div className="flex min-h-0 max-h-[26%] flex-col">
             <LiveFeed items={feed} />
           </div>
         </section>
@@ -240,12 +231,14 @@ export function PitchRoom() {
 
       <JuryStrip seats={seats} />
 
-      <DemoControls
-        onExpression={setSeatExpression}
-        onQuestion={pushQuestion}
-        onToggleHuman={toggleHuman}
-        humanSlug={humanSlug}
-      />
+      {demo && (
+        <DemoControls
+          onExpression={setSeatExpression}
+          onQuestion={pushQuestion}
+          onToggleHuman={() => {}}
+          humanSlug={null}
+        />
+      )}
     </div>
   );
 }

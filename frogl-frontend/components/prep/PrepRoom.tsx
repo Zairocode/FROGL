@@ -256,7 +256,11 @@ export function PrepRoom() {
                       }
                       className="h-4 w-4 accent-[var(--accent-teal)]"
                     />
-                    <span aria-hidden>{j.emoji}</span>
+                    <span
+                      aria-hidden
+                      className="inline-block h-2.5 w-2.5 rounded-full"
+                      style={{ background: j.color }}
+                    />
                     <span
                       style={{ color: dentro ? j.color : undefined }}
                       className={dentro ? "" : "text-fg-muted line-through"}

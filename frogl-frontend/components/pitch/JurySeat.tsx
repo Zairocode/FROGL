@@ -42,14 +42,17 @@ export function JurySeat({ seat }: Props) {
     };
   }, [seat.kind]);
 
+  // El color llega del perfil en Convex. El fallback por slug cubre
+  // sesiones viejas sin color guardado.
   const accentVar =
-    seat.slug === "tecnico"
+    seat.color ??
+    (seat.slug === "tecnico"
       ? "var(--jury-tecnico)"
       : seat.slug === "tiktok"
         ? "var(--jury-tiktok)"
         : seat.slug === "recien-llegado"
           ? "var(--jury-late)"
-          : "var(--jury-actitud)";
+          : "var(--jury-actitud)");
 
   return (
     <div className="flex min-w-0 flex-1 flex-col items-center gap-1 px-1">
@@ -76,7 +79,7 @@ export function JurySeat({ seat }: Props) {
             )}
           </div>
         ) : (
-          <JuryBust slug={seat.slug} expression={seat.expression} size={160} />
+          <JuryBust slug={seat.slug} expression={seat.expression} size={160} accent={seat.color} />
         )}
       </div>
 

@@ -58,6 +58,18 @@ export const answerQuestion = mutation({
     ctx.db.patch(questionId, { answered: true }),
 });
 
+// Muestras acusticas de la sesion, para el medidor de comportamiento del
+// front: volumen, silencio, y de ahi ritmo y monotonia.
+export const delivery = query({
+  args: { sessionId: v.id("sessions") },
+  handler: (ctx, { sessionId }) =>
+    ctx.db
+      .query("delivery")
+      .withIndex("by_session_time", (q) => q.eq("sessionId", sessionId))
+      .order("desc")
+      .take(40),
+});
+
 // La ultima revision del corrector. El front la usa para decidir si ya
 // puede mostrar el boton de "mandar al jurado".
 export const reviews = query({

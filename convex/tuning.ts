@@ -77,7 +77,7 @@ export const loadFixture = internalMutation({
         sessionId,
         kind: "agent",
         profileId: profile._id,
-        displayName: `${profile.emoji} ${profile.name}`,
+        displayName: profile.name,
         joinedAtMs: profile.defaultJoinAtMs ?? 0,
         active: true,
       });

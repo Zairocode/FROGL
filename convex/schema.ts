@@ -100,6 +100,12 @@ export default defineSchema({
     // Solo el tecnico contrasta contra la web. Los demas opinan de lo que
     // escucharon: buscar por todos multiplica costo y tiempo sin sumar.
     verifiesFacts: v.optional(v.boolean()),
+    // Nadie reacciona ni juzga los primeros graceMs: el arranque en frio no
+    // cuenta. Pedido explicito: "dar unos momentos de gracia".
+    graceMs: v.optional(v.number()),
+    // Voz de ElevenLabs por juez. Lo escribe el equipo de TTS desde el
+    // dashboard; el schema lo declara para no pisarlo en cada deploy.
+    voiceId: v.optional(v.string()),
     persona: v.string(),
     rubric: v.array(
       v.object({

@@ -14,12 +14,12 @@ const PROBLEM_LINES = [
 ];
 
 const JURADOS = [
-  { slug: "tecnico", emoji: "🔬", color: "#38bdf8", name: "Dra. Elena Vargas", que: "Factibilidad y arquitectura. La única que contrasta tus datos contra la web." },
-  { slug: "comercial", emoji: "💼", color: "#34d399", name: "Lucía Ferrer", que: "Quién paga, cuánto, y por qué te elige a vos." },
-  { slug: "tiktok", emoji: "📱", color: "#ff8fab", name: "Kevin", que: "Se aburre a los quince segundos. Si no hay gancho, se fue." },
-  { slug: "usuario-final", emoji: "🙋", color: "#f97316", name: "Sandra Ríos", que: "No sabe de tecnología. Solo si le sirve el lunes a la mañana." },
-  { slug: "recien-llegado", emoji: "🚪", color: "#fbbf24", name: "Marco Ibáñez", que: "Llegó tarde. Mide si tu pitch se sostiene solo." },
-  { slug: "actitud", emoji: "🎭", color: "#c4b5fd", name: "Rosa Puentes", que: "No mira la idea, te mira a vos: convicción y manejo de presión." },
+  { slug: "tecnico", color: "#38bdf8", name: "Técnico", que: "Factibilidad y arquitectura. El único que contrasta tus datos contra la web." },
+  { slug: "comercial", color: "#34d399", name: "Comercial", que: "Quién paga, cuánto, y por qué te elige a vos." },
+  { slug: "tiktok", color: "#ff8fab", name: "Distraído", que: "Se aburre a los quince segundos. Si no hay gancho, se fue." },
+  { slug: "usuario-final", color: "#f97316", name: "Usuario", que: "No sabe de tecnología. Solo si le sirve el lunes a la mañana." },
+  { slug: "recien-llegado", color: "#fbbf24", name: "Recién Llegado", que: "Llegó tarde. Mide si tu pitch se sostiene solo." },
+  { slug: "actitud", color: "#c4b5fd", name: "Actitud", que: "No mira la idea, te mira a vos: convicción y manejo de presión." },
 ];
 
 const PREGUNTAS = [
@@ -187,9 +187,11 @@ export function LandingPage() {
           {JURADOS.map((j, i) => (
             <Reveal key={j.slug} delay={i * 70}>
               <div className="flex gap-3">
-                <span className="text-2xl leading-none" aria-hidden>
-                  {j.emoji}
-                </span>
+                <span
+                  aria-hidden
+                  className="mt-1.5 inline-block h-3 w-3 shrink-0 rounded-full"
+                  style={{ background: j.color }}
+                />
                 <div>
                   <p
                     className="font-[family-name:var(--font-display)] text-base"

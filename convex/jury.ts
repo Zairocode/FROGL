@@ -130,6 +130,9 @@ export const react = action({
     const b = await ctx.runQuery(internal.jury.bundle, { seatId });
     if (!b) return;
     const nowMs = b.session.startedAt ? Date.now() - b.session.startedAt : 0;
+    // Momentos de gracia: el arranque no se comenta. El scheduler ya lo
+    // respeta; esto cubre ticks encolados de antes.
+    if (nowMs < (b.profile.graceMs ?? 0)) return;
     const visible = sliceTranscript(b.lines, b.seat, b.profile, nowMs);
     if (visible.length === 0) return;
 
@@ -253,7 +256,11 @@ export const score = action({
               .map((m) => `- ${m.problem}`)
               .join("\n")}`
           : "",
+        (b.profile.graceMs ?? 0) > 0
+          ? `Los primeros ${Math.round((b.profile.graceMs ?? 0) / 1000)} segundos son calentamiento: no los juzgues ni los cites como falla.`
+          : "",
         "El expositor vino a mejorar, no a que lo destruyan. Se exigente y concreto, nunca cruel.",
+        "REGLA DURA: toda critica cita el minuto (mm:ss) y la frase textual a la que se refiere. Una queja sin momento concreto no se escribe.",
       ]
         .filter(Boolean)
         .join("\n\n"),

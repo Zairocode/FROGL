@@ -31,16 +31,15 @@ export type JuryExpression =
   | "skeptical"
   | "convinced";
 
-export type JurySlug =
-  | "tecnico"
-  | "tiktok"
-  | "recien-llegado"
-  | "actitud";
+// Abierto a proposito: los slugs viven en la tabla profiles de Convex y
+// pueden crecer sin tocar este archivo.
+export type JurySlug = string;
 
 export type SeatView = {
   slug: JurySlug;
   kind: "agent" | "human";
   displayName: string;
+  color?: string; // viene del perfil en Convex; la unica identidad visual
   expression: JuryExpression;
   lastNote?: string;
   lastQuestion?: string;
