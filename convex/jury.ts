@@ -9,6 +9,14 @@ import type { Doc } from "./_generated/dataModel";
 const MODEL = "anthropic/claude-sonnet-5";
 const KINDS = ["hooked", "confused", "bored", "skeptical", "convinced"] as const;
 
+// Anotado a mano: sin esto TS entra en ciclo (action -> internal.jury.bundle -> api.d.ts).
+type Bundle = {
+  seat: Doc<"seats">;
+  session: Doc<"sessions">;
+  profile: Doc<"profiles">;
+  lines: Doc<"transcript">[];
+} | null;
+
 // ============================================================
 //  EL TRUCO DEL PROYECTO
 //  No hay 4 agentes. Hay UNO. Lo que cambia entre jurados es
@@ -40,7 +48,7 @@ function contextNote(profile: Doc<"profiles">, seat: Doc<"seats">) {
 
 export const bundle = internalQuery({
   args: { seatId: v.id("seats") },
-  handler: async (ctx, { seatId }) => {
+  handler: async (ctx, { seatId }): Promise<Bundle> => {
     const seat = await ctx.db.get(seatId);
     if (!seat || !seat.profileId) return null;
     const [session, profile] = await Promise.all([
@@ -82,12 +90,12 @@ export const saveReaction = internalMutation({
 // Una reaccion en vivo. El front la ve aparecer sola por la suscripcion.
 export const react = action({
   args: { seatId: v.id("seats") },
-  handler: async (ctx, { seatId }) => {
+  handler: async (ctx, { seatId }): Promise<void> => {
     const b = await ctx.runQuery(internal.jury.bundle, { seatId });
-    if (!b) return null;
+    if (!b) return;
     const nowMs = b.session.startedAt ? Date.now() - b.session.startedAt : 0;
     const visible = sliceTranscript(b.lines, b.seat, b.profile, nowMs);
-    if (visible.length === 0) return null;
+    if (visible.length === 0) return;
 
     const heard = visible.map((l) => l.text).join(" ");
     const notes = await retrieve(ctx, b.profile.retrievalTag, heard.slice(-800));
@@ -123,7 +131,6 @@ export const react = action({
       note: output.note,
       question: output.question ?? undefined,
     });
-    return output;
   },
 });
 
@@ -143,7 +150,7 @@ export const saveScore = internalMutation({
 // Scorecard final. El total lo calculamos nosotros con los pesos, no el modelo.
 export const score = action({
   args: { seatId: v.id("seats") },
-  handler: async (ctx, { seatId }) => {
+  handler: async (ctx, { seatId }): Promise<{ total: number; verdict: string } | null> => {
     const b = await ctx.runQuery(internal.jury.bundle, { seatId });
     if (!b) return null;
     const endMs =
