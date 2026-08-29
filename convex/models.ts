@@ -9,9 +9,10 @@ const google = createGoogleGenerativeAI({
 
 export const chatModel = google("gemini-3.1-flash-lite");
 
-// gemini-3.1-flash-lite no embebe. Este modelo sí, y 1536 calza el vectorIndex.
+// gemini-3.1-flash-lite no embebe. Este modelo sí, y 3072 calza el vectorIndex
+// del schema (el deployment ya tiene chunks a 3072).
 const embedModel = google.textEmbedding("gemini-embedding-001");
-const EMBED_DIMS = 1536;
+const EMBED_DIMS = 3072;
 
 type EmbedTask = "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY";
 

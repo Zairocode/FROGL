@@ -1,5 +1,5 @@
 import { internalMutation } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 
 // ============================================================
 //  EL LOOP QUE HACE VIVIR AL JURADO
@@ -54,7 +54,7 @@ export const tick = internalMutation({
         // Marcamos ANTES de agendar: si el action falla, el proximo tick
         // lo reintenta (lastReactedAtMs queda viejo).
         await ctx.db.patch(seat._id, { lastReactedAtMs: nowMs });
-        await ctx.scheduler.runAfter(0, internal.jury.react, {
+        await ctx.scheduler.runAfter(0, api.jury.react, {
           seatId: seat._id,
         });
       }

@@ -4,6 +4,8 @@ import { v } from "convex/values";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { retrieve } from "./rag";
+import { webSearch } from "./tavily";
+import { pitchBriefing } from "./pitchTypes";
 import { chat } from "./model";
 import type { Doc } from "./_generated/dataModel";
 import { analyze } from "./delivery";
@@ -121,19 +123,23 @@ export const react = action({
 
     const heard = visible.map((l) => l.text).join(" ");
     const notes = await retrieve(ctx, b.profile.retrievalTag, heard.slice(-800));
+    const web = webSearch(b.profile, "react");
 
     const { output } = await generateText({
       model: await chat(MODEL),
       system: [
         b.profile.persona,
+        pitchBriefing(b.session.pitchType, b.profile.slug),
         contextNote(b.profile, b.seat),
         notes.length ? `Sabes esto del tema:\n- ${notes.join("\n- ")}` : "",
         "Estas escuchando un pitch EN VIVO. Reacciona en una linea, en primera persona. Nada de resumir lo que escuchaste.",
         `Hablas en ${b.profile.dialect ?? DIALECTO_POR_DEFECTO}.`,
+        web.instruction,
       ]
         .filter(Boolean)
         .join("\n\n"),
       prompt: `Esto es lo que escuchaste hasta ahora:\n\n"${heard}"\n\nReacciona ahora.`,
+      ...(web.tools ? { tools: web.tools, stopWhen: web.stopWhen } : {}),
       output: Output.object({
         schema: z.object({
           kind: z.enum(KINDS),
@@ -191,6 +197,7 @@ export const score = action({
     const visible = sliceTranscript(b.lines, b.seat, b.profile, endMs, "final");
     const heard = visible.map((l) => l.text).join(" ");
     const delivery = analyze(visible, b.samples);
+    const web = webSearch(b.profile, "score");
 
     const criterio = z.object({
       score: z.number().min(0).max(10),
@@ -203,11 +210,15 @@ export const score = action({
       model: await chat(MODEL),
       system: [
         b.profile.persona,
+        pitchBriefing(b.session.pitchType, b.profile.slug),
         contextNote(b.profile, b.seat),
         "Calificas SOLO lo que escuchaste. Si te perdiste parte del pitch, eso juega en contra del pitch, no a favor.",
         "Como lo dijo, medido del audio y del texto (no lo interpretes, es dato duro): " +
           delivery.resumen,
-      ].join("\n\n"),
+        web.instruction,
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
       // Puntuar es medicion, no creatividad: sin esto la misma corrida varia
       // +-1.5 puntos y no se puede saber si un cambio de rubrica sirvio.
       // Las reacciones en vivo SI quedan con temperatura default: ahi la
@@ -223,6 +234,7 @@ export const score = action({
         ),
         "Cerra con un veredicto de dos lineas.",
       ].join("\n\n"),
+      ...(web.tools ? { tools: web.tools, stopWhen: web.stopWhen } : {}),
       output: Output.object({
         schema: z.object({
           criterios: z.object(shape),

@@ -65,7 +65,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || !account || !sessionId) return;
-      void sendMessage({ sessionId, author: account.name, text: trimmed });
+      void sendMessage({
+        sessionId,
+        accountId: account.id,
+        author: account.name,
+        color: account.color,
+        text: trimmed,
+      });
     },
     [account, sessionId, sendMessage],
   );

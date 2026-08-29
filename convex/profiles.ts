@@ -29,6 +29,7 @@ export const JURY = [
       { key: "defensa", label: "Defiende decisiones", weight: 0.15 },
     ],
     retrievalTag: "tecnico",
+    verifiesFacts: true, // Dra. Elena verifica afirmaciones dudosas en internet (Tavily)
     contextPolicy: "full" as const,
     reactEveryMs: 25000,
   },

@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { pitchTypeValidator } from "./pitchTypes";
 
 // Politica de contexto: QUE PORCION DEL TRANSCRIPT VE CADA JURADO.
 // Es el knob que hace distintos a los jurados sin duplicar codigo de agente.
@@ -21,6 +22,19 @@ export default defineSchema({
   sessions: defineTable({
     title: v.string(),
     presenterName: v.string(),
+    // Tipo de pitch: el lente que el front elige al crear la sala. Alimenta
+    // el briefing de los jurados (pitchTypes.pitchBriefing). Vacio = general.
+    pitchType: v.optional(pitchTypeValidator),
+    // Fase del room (live/review/...). Vive en el front; el backend lo persiste
+    // tal cual llega. Opcional por compatibilidad con sesiones viejas.
+    phase: v.optional(v.string()),
+    // Campos del room que el front ya guarda en runtime (deployment actual).
+    // Se preservan por compatibilidad; el backend no los escribe todavia.
+    topic: v.optional(v.string()),
+    plannedMs: v.optional(v.number()),
+    reviewRound: v.optional(v.number()),
+    jurySlugs: v.optional(v.array(v.string())),
+    factCheck: v.optional(v.boolean()),
     status: v.union(v.literal("lobby"), v.literal("live"), v.literal("ended")),
     startedAt: v.optional(v.number()),
     endedAt: v.optional(v.number()),
@@ -47,6 +61,11 @@ export default defineSchema({
       }),
     ),
     retrievalTag: v.string(),   // que corpus del RAG ve -> chunks.tag
+    // Puede verificar afirmaciones factuales con Tavily (tool buscarEnWeb).
+    // El deployment ya usaba este nombre en runtime; lo adoptamos.
+    verifiesFacts: v.optional(v.boolean()),
+    // Refinamiento de voz, editable en runtime. Se preserva por compatibilidad.
+    tone: v.optional(v.string()),
     contextPolicy,
     windowMs: v.optional(v.number()),
     defaultJoinAtMs: v.optional(v.number()),
@@ -63,6 +82,9 @@ export default defineSchema({
     userId: v.optional(v.string()),
     joinedAtMs: v.number(),
     active: v.boolean(),
+    // Ultima vez que este asiento reacciono (solo agentes). El scheduler la
+    // usa como throttle: no dispara jury.react si reactEveryMs no paso.
+    lastReactedAtMs: v.optional(v.number()),
     lastSeen: v.optional(v.number()), // heartbeat del humano; los agentes no lo usan
     color: v.optional(v.string()),
   }).index("by_session", ["sessionId"]),
@@ -98,6 +120,12 @@ export default defineSchema({
     ),
     total: v.number(),
     verdict: v.string(),
+    // Feedback categorizado del scorecard (deployment actual). El backend de
+    // esta rama no los escribe todavia; se preservan por compatibilidad.
+    funciono: v.optional(v.string()),
+    hacer: v.optional(v.string()),
+    romper: v.optional(v.string()),
+    momento: v.optional(v.string()),
   }).index("by_session", ["sessionId"]),
 
   // Muestras acusticas que manda el browser cada ~3s con Web Audio.
@@ -119,7 +147,21 @@ export default defineSchema({
     cue: v.optional(v.string()), // chat | volume | posture | rating
   }).index("by_session", ["sessionId"]),
 
+  // Cola de TTS: cuando un jurado (agente) hace una pregunta, el backend la
+  // encola aca. El front (Chrome speechSynthesis, Linux Mint) la consume y
+  // la marca done. El backend NO genera audio: solo orquesta.
+  speakJobs: defineTable({
+    sessionId: v.id("sessions"),
+    seatId: v.id("seats"),
+    text: v.string(),
+    kind: v.union(v.literal("reaction"), v.literal("question")),
+    tMs: v.number(),
+    done: v.boolean(),
+  }).index("by_session_pending", ["sessionId", "done"]),
+
   // Corpus del RAG. Un chunk = un tag. Si sirve para dos jurados, se duplica.
+  // Embeddings: gemini-embedding-001 (3072 dims). El deployment actual ya
+  // tiene chunks a 3072: cambiar la dimension forzaria a dropear y re-embedear.
   chunks: defineTable({
     tag: v.string(),
     text: v.string(),
@@ -127,7 +169,7 @@ export default defineSchema({
     embedding: v.array(v.float64()),
   }).vectorIndex("by_embedding", {
     vectorField: "embedding",
-    dimensions: 3072, // gemini-embedding-001
+    dimensions: 3072,
     filterFields: ["tag"],
   }),
 });

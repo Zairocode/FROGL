@@ -2,12 +2,10 @@ import { action, internalMutation, internalQuery } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
-import { embed } from "ai";
-import { embedding as embeddingModel } from "./model";
+import { embedText } from "./models";
 
-// Las dimensiones tienen que coincidir con el vectorIndex del schema.
-export { EMBED_MODEL } from "./model";
-import { EMBED_MODEL } from "./model";
+// Los embeddings de aca y de seed.ts salen de models.embedText (3072 dims),
+// que calza con el vectorIndex del schema. Un solo pipeline, una sola dimension.
 
 export const save = internalMutation({
   args: {
@@ -27,11 +25,24 @@ export const byIds = internalQuery({
   },
 });
 
+// Lo usa seed.ts para la idempotencia del corpus: no re-embebe si el chunk ya
+// existe por source.
+export const bySource = internalQuery({
+  args: { source: v.string() },
+  handler: async (ctx, { source }) => {
+    const doc = await ctx.db
+      .query("chunks")
+      .filter((q) => q.eq(q.field("source"), source))
+      .first();
+    return doc ?? null;
+  },
+});
+
 // Carga un pedazo de conocimiento para un jurado. tag = profiles.retrievalTag
 export const ingest = action({
   args: { tag: v.string(), source: v.string(), text: v.string() },
   handler: async (ctx, { tag, source, text }) => {
-    const { embedding } = await embed({ model: await embeddingModel(EMBED_MODEL), value: text });
+    const embedding = await embedText(text, "RETRIEVAL_DOCUMENT");
     await ctx.runMutation(internal.rag.save, { tag, source, text, embedding });
   },
 });
@@ -44,7 +55,7 @@ export async function retrieve(
   limit = 4,
 ): Promise<string[]> {
   if (!queryText.trim()) return [];
-  const { embedding } = await embed({ model: await embeddingModel(EMBED_MODEL), value: queryText });
+  const embedding = await embedText(queryText, "RETRIEVAL_QUERY");
   const hits = await ctx.vectorSearch("chunks", "by_embedding", {
     vector: embedding,
     filter: (q) => q.eq("tag", tag),

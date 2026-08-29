@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { internal, api } from "./_generated/api";
 import { v } from "convex/values";
+import { pitchTypeValidator } from "./pitchTypes";
 
 export const get = query({
   args: { sessionId: v.id("sessions") },
@@ -34,7 +35,11 @@ export const current = query({
 // Crea la sesion y sienta a los 4 agentes. Los humanos se suman despues
 // con seats.joinHuman; si no aparece ninguno, el jurado ya esta completo.
 export const create = mutation({
-  args: { title: v.string(), presenterName: v.string() },
+  args: {
+    title: v.string(),
+    presenterName: v.string(),
+    pitchType: v.optional(pitchTypeValidator),
+  },
   handler: async (ctx, args) => {
     const sessionId = await ctx.db.insert("sessions", {
       ...args,
