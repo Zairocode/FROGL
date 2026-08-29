@@ -167,13 +167,17 @@ export function useSpeechTranscript() {
     resume: cap.resume,
     // Ya no depende de que el navegador tenga Web Speech: graba y listo.
     supported: true,
-    // Si se perdieron clips lo decimos: el silencio era el sintoma de
-    // "la transcripcion no jala".
+    // Tres niveles: "perdido" es definitivo (se dio por vencido despues
+    // de ~1 minuto reintentando en segundo plano), "en cola" es temporal
+    // y probablemente se resuelva solo. Antes todo caia en un fallo
+    // silencioso: el sintoma era "la transcripcion no jala".
     error:
       cap.error ??
       (cap.lost > 0
-        ? `Se ${cap.lost === 1 ? "perdio 1 tramo" : "perdieron " + cap.lost + " tramos"} de audio por fallas de red. Lo demas sigue grabando.`
-        : null),
+        ? `Se ${cap.lost === 1 ? "perdio 1 tramo" : "perdieron " + cap.lost + " tramos"} de audio: la red no aguanto ni los reintentos de fondo. Lo demas sigue grabando.`
+        : cap.queued > 0
+          ? `Reintentando ${cap.queued === 1 ? "1 tramo" : cap.queued + " tramos"} de audio por la red. Sigue grabando mientras tanto.`
+          : null),
     startedAt: session?.startedAt ?? null,
     elapsedMs,
     elapsedLabel: formatMs(elapsedMs),

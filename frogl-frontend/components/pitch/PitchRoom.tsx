@@ -171,7 +171,16 @@ export function PitchRoom() {
       </header>
 
       {speech.error && (
-        <div className="shrink-0 bg-danger/15 px-4 py-1.5 text-sm text-danger">
+        <div
+          className={`shrink-0 px-4 py-1.5 text-sm ${
+            // "Reintentando" no es una falla, es la red recuperandose sola.
+            // Pintarlo en rojo asustaria por algo que probablemente se
+            // resuelve en el proximo intento.
+            speech.error.startsWith("Reintentando")
+              ? "bg-accent-amber/15 text-accent-amber"
+              : "bg-danger/15 text-danger"
+          }`}
+        >
           {speech.error}
         </div>
       )}

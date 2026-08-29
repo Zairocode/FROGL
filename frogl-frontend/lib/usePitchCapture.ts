@@ -47,9 +47,13 @@ export function usePitchCapture(
   // Clips transcritos. Si queda en 0 con el nivel moviendose, el problema
   // esta en la transcripcion y no en el microfono.
   const [heard, setHeard] = useState(0);
-  // Clips que fallaron incluso con reintentos: visible para que el usuario
-  // sepa que perdio audio en vez de creer que "no jala".
+  // Clips que agotaron TODO reintento (rapido + cola de fondo) y se dan
+  // por perdidos de verdad. Visible para que el usuario sepa que perdio
+  // audio en vez de creer que "no jala".
   const [lost, setLost] = useState(0);
+  // Clips en la cola de fondo, todavia con esperanza de entrar. No es
+  // "perdido": es "tardando".
+  const [queued, setQueued] = useState(0);
   const [paused, setPaused] = useState(false);
 
   const st = useRef({
@@ -74,6 +78,11 @@ export function usePitchCapture(
     paused: false,
     grabar: null as (() => void) | null,
     sid: null as Id<"sessions"> | null,
+    // Tramos que fallaron los 3 intentos rapidos. No se tiran: quedan aca
+    // para que el pump de mas abajo los siga probando en segundo plano,
+    // asi un corte de wifi de unos segundos no es una perdida definitiva.
+    queue: [] as { wav: string; sid: Id<"sessions">; attempts: number }[],
+    queueBusy: false,
   });
 
   // Suelta microfono y AudioContext, pero SOLO cuando no queda nada en vuelo.
@@ -248,7 +257,12 @@ export function usePitchCapture(
             if (ok) {
               if (texto) setHeard((n) => n + 1);
             } else {
-              setLost((n) => n + 1);
+              // Los 3 intentos rapidos (unos ~4.5s) no alcanzaron. No se
+              // tira: pasa a la cola de fondo, que sigue probando cada
+              // pocos segundos mientras dure la sesion. Recien si ESA
+              // tambien se agota se cuenta como perdido de verdad.
+              s.queue.push({ wav, sid, attempts: 0 });
+              setQueued(s.queue.length);
             }
           } catch (err) {
             console.warn("[FROGL] no se pudo decodificar el clip:", err);
@@ -323,8 +337,58 @@ export function usePitchCapture(
     s.grabar?.();
   }, []);
 
+  // Cola de fondo para tramos que fallaron los intentos rapidos. Vive por
+  // fuera del ciclo de grabacion a proposito: sigue reintentando aunque
+  // ya hayas cortado el microfono, asi un corte de wifi al final del
+  // pitch no te deja con un agujero permanente en el transcript.
+  useEffect(() => {
+    const PUMP_MS = 4000;
+    const MAX_ATTEMPTS = 15; // ~1 minuto reintentando antes de darse por vencido
+    const id = setInterval(() => {
+      const s = st.current;
+      if (s.queue.length === 0 || s.queueBusy) return;
+      s.queueBusy = true;
+      const item = s.queue[0];
+      ingest({ sessionId: item.sid, audio: item.wav })
+        .then((texto) => {
+          s.queue.shift();
+          setQueued(s.queue.length);
+          if (texto) setHeard((n) => n + 1);
+        })
+        .catch((err) => {
+          item.attempts++;
+          console.warn(
+            `[FROGL] tramo en cola fallo (intento ${item.attempts}/${MAX_ATTEMPTS}):`,
+            err,
+          );
+          if (item.attempts >= MAX_ATTEMPTS) {
+            s.queue.shift();
+            setQueued(s.queue.length);
+            setLost((n) => n + 1);
+          }
+        })
+        .finally(() => {
+          s.queueBusy = false;
+        });
+    }, PUMP_MS);
+    return () => clearInterval(id);
+  }, [ingest]);
+
   // Suelta el microfono si el componente se desmonta a mitad del pitch.
   useEffect(() => stop, [stop]);
 
-  return { recording, paused, interim, level, error, heard, lost, start, pause, resume, stop };
+  return {
+    recording,
+    paused,
+    interim,
+    level,
+    error,
+    heard,
+    lost,
+    queued,
+    start,
+    pause,
+    resume,
+    stop,
+  };
 }
