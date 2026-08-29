@@ -1,12 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { JuryFigure } from "./characters/JuryFigure";
+import { ExposureScore } from "./ExposureScore";
 import { JuryChatPanel } from "./JuryChatPanel";
-import { JURY_LIST, type JurySlug } from "@/lib/jury";
+import { JuryCoaching } from "./JuryCoaching";
+import { JurorAvatar } from "./JurorAvatar";
+import { JuryProjection } from "./LiveCamera";
+import { dropPresence, touchPresence } from "@/lib/accounts";
+import { useAccount } from "@/lib/account-context";
+import { useEffect, useMemo } from "react";
 
 export function JuryRoom() {
-  const [activeSeat, setActiveSeat] = useState<JurySlug>("tecnico");
+  const { account, online } = useAccount();
+  const panel = useMemo(() => {
+    const byId = new Map(online.map((juror) => [juror.id, juror]));
+    if (account) byId.set(account.id, account);
+    return [...byId.values()];
+  }, [account, online]);
+
+  useEffect(() => {
+    if (!account) return;
+    touchPresence(account);
+    const beat = window.setInterval(() => touchPresence(account), 4000);
+    return () => {
+      window.clearInterval(beat);
+      dropPresence(account.id);
+    };
+  }, [account]);
+
+  if (!account) return null;
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-5 py-8">
@@ -16,44 +37,39 @@ export function JuryRoom() {
           Sala del jurado
         </h1>
         <p className="max-w-xl text-fg-muted">
-          Cuatro asientos, un chat. El pitcher no ve esta sala: solo recibe tus
-          mensajes como globos de texto.
+          Entraste como <span style={{ color: account.color }}>{account.name}</span>.
+          No hay bots: solo cuentas humanas. El pitcher recibe tus globos.
         </p>
       </header>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {JURY_LIST.map((seat) => {
-          const selected = seat.slug === activeSeat;
-          return (
-            <button
-              key={seat.slug}
-              type="button"
-              onClick={() => setActiveSeat(seat.slug)}
-              className={`flex flex-col items-center rounded-[1.25rem] border px-2 py-4 text-center transition-transform ${
-                selected
-                  ? "border-transparent bg-bg-elevated"
-                  : "border-border bg-transparent hover:bg-bg-elevated/50"
-              }`}
-              style={
-                selected
-                  ? { boxShadow: `0 0 0 2px ${seat.color}` }
-                  : undefined
-              }
-            >
-              <JuryFigure slug={seat.slug} size={120} />
-              <p className="mt-1 font-[family-name:var(--font-display)] text-lg leading-tight">
-                {seat.name}
-              </p>
-              <p className="label-caps mt-1" style={{ color: seat.color }}>
-                {seat.role}
-              </p>
-              <p className="mt-1 text-xs text-fg-muted">{seat.policy}</p>
-            </button>
-          );
-        })}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(16rem,0.9fr)]">
+        <JuryProjection />
+        <div className="flex flex-col gap-5">
+          <JuryCoaching />
+          <ExposureScore compact />
+        </div>
       </div>
 
-      <JuryChatPanel activeSeat={activeSeat} />
+      <section>
+        <p className="label-caps">Jurados en sala</p>
+        <div className="mt-4 flex flex-wrap gap-6">
+          {panel.length === 0 ? (
+            <p className="text-sm text-fg-muted">Nadie más conectado todavía.</p>
+          ) : (
+            panel.map((juror) => (
+              <div key={juror.id} className="flex flex-col items-center gap-2">
+                <JurorAvatar name={juror.name} color={juror.color} size={88} />
+                <p className="font-[family-name:var(--font-display)] text-lg leading-tight">
+                  {juror.name}
+                  {juror.id === account.id ? " · vos" : ""}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      <JuryChatPanel />
     </main>
   );
 }

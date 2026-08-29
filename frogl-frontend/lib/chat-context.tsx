@@ -8,30 +8,33 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { JurySlug } from "./jury";
+import { useAccount } from "./account-context";
 import {
   CHAT_CHANNEL,
+  CHAT_STORAGE_KEY,
   createMessage,
   readChat,
   writeChat,
   type ChatMessage,
+  type CueKind,
 } from "./chat-store";
 
 type ChatContextValue = {
   messages: ChatMessage[];
-  send: (seat: JurySlug, author: string, text: string) => void;
+  send: (text: string, cue?: CueKind) => void;
 };
 
 const ChatContext = createContext<ChatContextValue | null>(null);
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
+  const { account } = useAccount();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   useEffect(() => {
     setMessages(readChat());
 
     const onStorage = (event: StorageEvent) => {
-      if (event.key === "frogl:jury-chat:v1") setMessages(readChat());
+      if (event.key === CHAT_STORAGE_KEY) setMessages(readChat());
     };
     window.addEventListener("storage", onStorage);
 
@@ -49,21 +52,24 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const send = useCallback((seat: JurySlug, author: string, text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
+  const send = useCallback(
+    (text: string, cue?: CueKind) => {
+      const trimmed = text.trim();
+      if (!trimmed || !account) return;
 
-    setMessages((prev) => {
-      const next = [...prev, createMessage(seat, author, trimmed)];
-      writeChat(next);
-      if ("BroadcastChannel" in window) {
-        const channel = new BroadcastChannel(CHAT_CHANNEL);
-        channel.postMessage(next);
-        channel.close();
-      }
-      return next;
-    });
-  }, []);
+      setMessages((prev) => {
+        const next = [...prev, createMessage(account, trimmed, cue)];
+        writeChat(next);
+        if ("BroadcastChannel" in window) {
+          const channel = new BroadcastChannel(CHAT_CHANNEL);
+          channel.postMessage(next);
+          channel.close();
+        }
+        return next;
+      });
+    },
+    [account],
+  );
 
   const value = useMemo(() => ({ messages, send }), [messages, send]);
 
