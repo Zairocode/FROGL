@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "convex/react";
-import { api } from "@convex/_generated/api";
+import { api } from "@/lib/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { JuryChatPanel } from "./JuryChatPanel";
 import { JurorAvatar } from "./JurorAvatar";

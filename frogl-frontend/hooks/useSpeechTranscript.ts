@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "convex/react";
-import { api } from "@convex/_generated/api";
+import { api } from "@/lib/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { isMostlyFillers, tokenize } from "@/lib/fillers";
 import type { Segment, TranscriptExport } from "@/lib/transcript-types";

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { api } from "@convex/_generated/api";
+import { api } from "@/lib/api";
 import type { Id } from "@convex/_generated/dataModel";
 import type { PublicJuror } from "./accounts";
 

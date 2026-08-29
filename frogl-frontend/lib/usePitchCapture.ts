@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAction, useMutation } from "convex/react";
-import { api } from "@convex/_generated/api";
+import { api } from "@/lib/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { encodeWav, toBase64 } from "./wav";
 

@@ -98,6 +98,12 @@ Lo segundo es obligatorio: el front importa el codegen de Convex desde
 `../convex/_generated` con el alias `@convex/*`. Sin esa opción, Vercel no sube
 esa carpeta y el build falla con *Module not found*.
 
+El front corre un `postinstall` que instala tambien las dependencias de la
+raiz. No lo saques: el front usa los tipos de `../convex/_generated`, y esos
+tipos se resuelven contra `<raiz>/node_modules`. Sin esa carpeta todo cae a
+`any` y el build muere con errores TS7006. En local no se nota porque la raiz
+suele tener `node_modules` de antes; en un clon limpio falla siempre.
+
 `NEXT_PUBLIC_CONVEX_URL` es opcional — hay un fallback en el código con la URL
 del deployment, que no es secreta porque toda variable `NEXT_PUBLIC_` termina
 en el bundle igual. Configurala igual si algún día cambia el deployment.

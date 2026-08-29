@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { api } from "@convex/_generated/api";
+import { api } from "@/lib/api";
 
 // PREPARAR EL PITCH
 // Junta lo que antes estaba partido en dos pantallas: el setup (tema,
