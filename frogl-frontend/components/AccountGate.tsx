@@ -23,10 +23,10 @@ export function AccountGate({ children }: { children: React.ReactNode }) {
           Esta sala es solo con cuenta de jurado
         </h1>
         <p className="mt-2 max-w-md text-fg-muted">
-          Ya no hay bots en el panel. Creá o usá tu cuenta para entrar.
+          Entrá con tu código de referido y tu nombre para unirte al panel.
         </p>
         <Link href="/cuenta" className="cta-primary mt-8">
-          Ir a mi cuenta
+          Entrar como jurado
         </Link>
       </main>
     );
