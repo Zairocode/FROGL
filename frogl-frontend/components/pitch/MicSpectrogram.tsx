@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-const MAX_OPTIONS = [5, 6, 7, 8, 9, 10] as const;
+export const MINUTE_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
 type Props = {
   listening: boolean;
@@ -11,6 +11,8 @@ type Props = {
   elapsedLabel: string;
   maxMinutes: number;
   onMaxMinutesChange: (minutes: number) => void;
+  /** "max" corta el pitch. "goal" es una meta: no para el mic. */
+  mode?: "max" | "goal";
 };
 
 export function MicSpectrogram({
@@ -20,15 +22,19 @@ export function MicSpectrogram({
   elapsedLabel,
   maxMinutes,
   onMaxMinutesChange,
+  mode = "max",
 }: Props) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const itemH = 28;
+  const isGoal = mode === "goal";
+  const goalLabel = `${maxMinutes}:00`;
+  const elapsedShort = elapsedLabel.replace(/^0(\d):/, "$1:");
 
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
-    const idx = MAX_OPTIONS.indexOf(
-      maxMinutes as (typeof MAX_OPTIONS)[number],
+    const idx = MINUTE_OPTIONS.indexOf(
+      maxMinutes as (typeof MINUTE_OPTIONS)[number],
     );
     if (idx < 0) return;
     el.scrollTop = idx * itemH;
@@ -38,14 +44,13 @@ export function MicSpectrogram({
     const el = scrollerRef.current;
     if (!el) return;
     const idx = Math.round(el.scrollTop / itemH);
-    const clamped = Math.max(0, Math.min(MAX_OPTIONS.length - 1, idx));
-    const next = MAX_OPTIONS[clamped];
+    const clamped = Math.max(0, Math.min(MINUTE_OPTIONS.length - 1, idx));
+    const next = MINUTE_OPTIONS[clamped];
     if (next !== maxMinutes) onMaxMinutesChange(next);
   };
 
   return (
     <div className="pointer-events-auto flex items-end gap-3 drop-shadow-[0_4px_16px_rgba(0,0,0,0.55)]">
-      {/* Izquierda: pill mic + tiempo */}
       <div className="flex items-center gap-3 rounded-full bg-[#2a2d31]/90 px-2 py-1.5 backdrop-blur-sm">
         <button
           type="button"
@@ -64,15 +69,27 @@ export function MicSpectrogram({
           <MicIcon muted={!listening} />
         </button>
 
-        <span className="min-w-[3.25rem] pr-3 text-center font-mono text-base tabular-nums tracking-tight text-white">
-          {elapsedLabel.replace(/^0(\d):/, "$1:")}
+        <span
+          className={[
+            "pr-3 text-center font-mono text-base tabular-nums tracking-tight text-white",
+            isGoal ? "min-w-[6.5rem]" : "min-w-[3.25rem]",
+          ].join(" ")}
+        >
+          {isGoal ? (
+            <>
+              {elapsedShort}
+              <span className="mx-0.5 text-white/45">/</span>
+              <span className="text-white/70">{goalLabel}</span>
+            </>
+          ) : (
+            elapsedShort
+          )}
         </span>
       </div>
 
-      {/* Derecha: selector máx minutos (label arriba, scroll abajo) */}
       <div className="flex flex-col items-center rounded-2xl bg-[#2a2d31]/90 px-2 pb-1.5 pt-1.5 backdrop-blur-sm">
         <span className="mb-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/70">
-          máx
+          {isGoal ? "meta" : "máx"}
         </span>
         <div className="relative h-[84px] w-12 overflow-hidden">
           <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-5 bg-gradient-to-b from-[#2a2d31] to-transparent" />
@@ -83,7 +100,7 @@ export function MicSpectrogram({
             onScroll={onScroll}
             className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth py-[28px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {MAX_OPTIONS.map((m) => (
+            {MINUTE_OPTIONS.map((m) => (
               <div
                 key={m}
                 className={[
