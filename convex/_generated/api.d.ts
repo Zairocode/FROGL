@@ -11,6 +11,7 @@
 import type * as corpus from "../corpus.js";
 import type * as jury from "../jury.js";
 import type * as live from "../live.js";
+import type * as loop from "../loop.js";
 import type * as profiles from "../profiles.js";
 import type * as rag from "../rag.js";
 import type * as seats from "../seats.js";
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   corpus: typeof corpus;
   jury: typeof jury;
   live: typeof live;
+  loop: typeof loop;
   profiles: typeof profiles;
   rag: typeof rag;
   seats: typeof seats;
