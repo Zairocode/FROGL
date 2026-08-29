@@ -59,6 +59,10 @@ export function usePitchCapture(
     frameTimer: null as ReturnType<typeof setInterval> | null,
     sampleTimer: null as ReturnType<typeof setInterval> | null,
     clipTimer: null as ReturnType<typeof setTimeout> | null,
+    watchdog: null as ReturnType<typeof setInterval> | null,
+    // Cuando arranco el ultimo clip. El watchdog lo usa para detectar una
+    // cadena muerta: si esto no avanza, nada esta grabando.
+    lastClipAt: 0,
     acc: [] as number[],
     on: false,
     // Clips decodificandose o subiendo ahora mismo. El microfono y el
@@ -91,7 +95,8 @@ export function usePitchCapture(
     if (s.frameTimer) clearInterval(s.frameTimer);
     if (s.sampleTimer) clearInterval(s.sampleTimer);
     if (s.clipTimer) clearTimeout(s.clipTimer);
-    s.frameTimer = s.sampleTimer = s.clipTimer = null;
+    if (s.watchdog) clearInterval(s.watchdog);
+    s.frameTimer = s.sampleTimer = s.clipTimer = s.watchdog = null;
     try {
       // Esto vacia lo que quedo grabado aunque no llegue a los 6s, y dispara
       // el onstop que lo transcribe. Por eso no se espera al clip completo.
@@ -165,20 +170,46 @@ export function usePitchCapture(
       // ---- QUE dijo: clips completos a Convex ----
       // Un clip por grabacion, no timeslices: los pedazos de MediaRecorder
       // despues del primero no traen cabecera y no se pueden decodificar solos.
-      const grabarClip = () => {
+      //
+      // BUG QUE ESTO ARREGLA: un compania hablo 5 minutos y solo se
+      // transcribieron ~12 palabras (el primer clip). Causa: crear un
+      // MediaRecorder nuevo cada 6s, encadenado desde el onstop del
+      // anterior, puede fallar (el navegador a veces tira error al
+      // reabrir el mismo stream muy seguido) — y esa falla no tenia
+      // reintento, asi que la cadena moria en silencio para siempre tras
+      // el primer clip. Ahora: (a) un fallo al crear/arrancar reintenta
+      // solo, y (b) el watchdog de mas abajo resucita la cadena aunque
+      // falle por una razon que no preveimos aca.
+      const grabarClip = (reintento = 0) => {
         if (!s.on || s.paused || !s.stream) return;
         let rec: MediaRecorder;
         try {
           rec = new MediaRecorder(s.stream);
         } catch (err) {
-          console.warn("[FROGL] MediaRecorder fallo:", err);
-          setError("Este navegador no puede grabar audio.");
+          console.warn(
+            `[FROGL] MediaRecorder fallo al crear (intento ${reintento + 1}):`,
+            err,
+          );
+          if (reintento < 5) {
+            setTimeout(() => grabarClip(reintento + 1), 500);
+          } else {
+            setError(
+              "El navegador dejo de poder grabar audio. Probá recargar la página.",
+            );
+          }
           return;
         }
         s.rec = rec;
+        s.lastClipAt = Date.now();
         const partes: Blob[] = [];
         rec.ondataavailable = (e) => {
           if (e.data.size > 0) partes.push(e.data);
+        };
+        rec.onerror = (e) => {
+          // No sabemos siempre si onstop se va a disparar despues de un
+          // error del recorder. El watchdog es la red de seguridad real;
+          // esto es para tener el motivo en consola cuando pasa.
+          console.warn("[FROGL] MediaRecorder onerror:", e);
         };
         rec.onstop = async () => {
           // En pausa no se encadena el siguiente, pero este se transcribe
@@ -228,7 +259,16 @@ export function usePitchCapture(
             liberar(); // el ultimo clip en salir apaga la luz
           }
         };
-        rec.start();
+        try {
+          rec.start();
+        } catch (err) {
+          console.warn(
+            `[FROGL] MediaRecorder fallo al arrancar (intento ${reintento + 1}):`,
+            err,
+          );
+          if (reintento < 5) setTimeout(() => grabarClip(reintento + 1), 500);
+          return;
+        }
         s.clipTimer = setTimeout(() => {
           try {
             if (rec.state !== "inactive") rec.stop();
@@ -240,7 +280,21 @@ export function usePitchCapture(
       s.grabar = grabarClip;
       s.paused = false;
       setPaused(false);
+      s.lastClipAt = Date.now();
       grabarClip();
+
+      // Red de seguridad: si en mas del doble de un clip no arranco uno
+      // nuevo, la cadena murio por algo que no anticipamos. La resucita
+      // en vez de dejar al presentador hablando al vacio.
+      s.watchdog = setInterval(() => {
+        if (!s.on || s.paused) return;
+        const quieto = Date.now() - s.lastClipAt > CHUNK_MS * 2.5;
+        const sinGrabar = !s.rec || s.rec.state === "inactive";
+        if (quieto && sinGrabar) {
+          console.warn("[FROGL] cadena de grabacion muerta, reanudando");
+          grabarClip();
+        }
+      }, CHUNK_MS);
 
       setRecording(true);
     },
